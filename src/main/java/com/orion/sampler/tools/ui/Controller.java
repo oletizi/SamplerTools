@@ -48,10 +48,12 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private final ScrollPane scrollPane;
   private final Player player;
   private final BiquadFilter filter;
+  private final AudioContext ac;
+  private final float sampleRateFactor;
   private TransientLocator locator;
   private int samplesPerPixel = 1000;
   private int zoomFactor = 2;
-  private int vertScale = 10000;
+  private int vertScale = 1000;
   private float transientThreshold = 0.01f;
   private float transientZoomFactor = 1.5f;
 
@@ -72,7 +74,8 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     this.canvas = canvas;
     this.sampleFile = sampleFile;
     sample = new Sample(sampleFile.getAbsolutePath());
-    AudioContext ac = new AudioContext(new JavaSoundAudioIO());
+    ac = new AudioContext(new JavaSoundAudioIO());
+    sampleRateFactor = sample.getSampleRate() / ac.getSampleRate();
     filter = new BiquadFilter(ac, 2, BiquadFilter.Type.HP);
     filter.setFrequency(8 * 1000f);
     ac.out.addInput(filter);
@@ -132,6 +135,9 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     float[] buffer = new float[channelCount];
     int x = 0;
     float total = 0;
+
+    info("sample rate: " + sample.getSampleRate() + " ac sample rate: " + ac.getSampleRate() + ", sample length: " + sample.getLength() + "ms, frames: " + frameCount);
+
     for (int i = 0; i < frameCount; i++) {
       sample.getFrame(i, buffer);
       double value = Math.abs(buffer[0]);
@@ -339,7 +345,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
     @Override
     public void run() {
-      double x = currentSample / samplesPerPixel;
+      double x = currentSample * sampleRateFactor / samplesPerPixel;
       double y = 0;
       double w = 1;
       double h = canvas.getHeight();
