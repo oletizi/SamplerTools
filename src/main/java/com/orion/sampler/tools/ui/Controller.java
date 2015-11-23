@@ -42,10 +42,13 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private final long frameCount;
   private final int channelCount;
   private final ScrollPane scrollPane;
-  private final TransientLocator locator;
+  private TransientLocator locator;
   private int samplesPerPixel = 1000;
-  private int zoomFactor = 10;
+  private int zoomFactor = 2;
   private int vertScale = 10000;
+  private float transientThreshold = 1.5f;
+  private float transientZoomFactor = 1.5f;
+
   private ChangeListener<? super Number> widthListener = new ChangeListener<Number>() {
     @Override
     public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
@@ -63,7 +66,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     this.canvas = canvas;
     this.sampleFile = sampleFile;
     sample = new Sample(sampleFile.getAbsolutePath());
-    locator = new TransientLocator(sample);
+    locator = new TransientLocator(sample, transientThreshold);
     frameCount = sample.getNumFrames();
     channelCount = sample.getNumChannels();
     canvas.setWidth(frameCount / channelCount / samplesPerPixel);
@@ -152,6 +155,10 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
           zoomIn();
         } else if (shouldZoomOut()) {
           zoomOut();
+        } else if (shouldIncreaseTransientThreshold()) {
+          increaseTransientThreshold();
+        } else if (shouldDecreaseTransientThreshold()) {
+          decreaseTransientThreshold();
         }
 
       } else if (keyEvent.getEventType().equals(KeyEvent.KEY_RELEASED)) {
@@ -162,6 +169,20 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     } else {
       info("Event: " + event);
     }
+  }
+
+  private void decreaseTransientThreshold() {
+    this.transientThreshold = transientThreshold / transientZoomFactor;
+    info("decreaseTransientThreshold: " + transientThreshold);
+    locator = new TransientLocator(sample, transientThreshold);
+    drawCanvas();
+  }
+
+  private void increaseTransientThreshold() {
+    this.transientThreshold = transientThreshold * transientZoomFactor;
+    info("increaseTransientThreshold: " + transientThreshold);
+    locator = new TransientLocator(sample, transientThreshold);
+    drawCanvas();
   }
 
   private void zoomOut() {
@@ -186,6 +207,14 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
   private boolean shouldZoomOut() {
     return pressedKeys.size() == 2 && commandOn() && pressedKeys.contains(KeyCode.OPEN_BRACKET);
+  }
+
+  private boolean shouldIncreaseTransientThreshold() {
+    return pressedKeys.size() == 1 && pressedKeys.contains(KeyCode.UP);
+  }
+
+  private boolean shouldDecreaseTransientThreshold() {
+    return pressedKeys.size() == 1 && pressedKeys.contains(KeyCode.DOWN);
   }
 
   @Override
@@ -220,7 +249,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     private boolean running = true;
     private final List<Transient> transients = new ArrayList<>();
 
-    public TransientLocator(final Sample sample) {
+    public TransientLocator(final Sample sample, float threshold) {
       super();
       player = new SamplePlayer(ac, sample);
       player.setEndListener(this);
@@ -258,7 +287,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
        * them dynamically.
        * mouse.x controls Threshold, mouse.y controls Alpha
        */
-      od.setThreshold(0.009f);
+      od.setThreshold(threshold);
       od.setAlpha(.9f);
 
       /*
