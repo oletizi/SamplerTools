@@ -15,12 +15,14 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Slider;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import net.beadsproject.beads.core.AudioContext;
@@ -54,6 +56,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private final AudioContext ac;
   private final AudioContext offlineAc;
   private final float sampleRateFactor;
+  private final Slider prerollSlider;
   private TransientLocator locator;
   private int samplesPerPixel = 1000;
   private int zoomFactor = 2;
@@ -67,6 +70,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
   private Set<KeyCode> pressedKeys = new HashSet<>();
   private final Sandbox sandbox;
+  private double currentPreroll;
 
   public Controller(final Sandbox sandbox, final Scene scene, final Group root, final Canvas canvas, final File sampleFile) throws IOException {
     this.sandbox = sandbox;
@@ -89,40 +93,61 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     locator = new TransientLocator(offlineAc, sample, transientThreshold, offlineFilter, player);
     frameCount = sample.getNumFrames();
     channelCount = sample.getNumChannels();
-    //
+
     scrollPane = new ScrollPane();
     scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
     scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
     scrollPane.setContent(canvas);
-    //scrollPane.setPrefWidth(scene.getWidth());
     scrollPane.setHmax(sample.getNumFrames() / (double) samplesPerPixel);
 
     final Button sliceButton = new Button("Slice");
-    final HBox controlRow1 = new HBox(20);
-    controlRow1.getChildren().add(sliceButton);
+    final Label prerollLabel = new Label("Preroll:");
+    prerollSlider = new Slider(0, 100, 0);
+    prerollSlider.setShowTickLabels(true);
+    prerollSlider.setShowTickMarks(true);
+    prerollSlider.setMajorTickUnit(10);
+    prerollSlider.setMinorTickCount(5);
 
-    final VBox controlBox = new VBox();
-    controlBox.getChildren().add(controlRow1);
+    final GridPane controlPane = new GridPane();
+    controlPane.setHgap(10);
+    controlPane.setVgap(10);
+
+    controlPane.add(prerollLabel, 0, 0);
+    controlPane.add(prerollSlider, 1, 0);
+    controlPane.add(sliceButton, 1, 1);
+
 
     final VBox containerBox = new VBox(20);
-
     containerBox.setPrefWidth(700);
     containerBox.getChildren().add(scrollPane);
-    containerBox.getChildren().add(controlBox);
+    containerBox.getChildren().add(controlPane);
 
-    //root.getChildren().add(scrollPane);
     root.getChildren().add(containerBox);
 
     // set up actions
     sliceButton.setOnAction(event -> slice());
 
+    prerollSlider.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
+      updatePreroll();
+    });
+
     drawCanvas();
     //updateView();
   }
 
+  private void updatePreroll() {
+    final double newPreroll = prerollSlider.getValue();
+    if (currentPreroll != newPreroll) {
+      // update the current preroll and redraw the canvas
+      info("Update preroll from " + currentPreroll + " to " + newPreroll);
+      currentPreroll = newPreroll;
+      drawCanvas();
+    }
+  }
+
 
   private void slice() {
-    final List<Sample> slices = new Slicer(offlineAc, locator).slice(0);
+    final List<Sample> slices = new Slicer(offlineAc, locator).slice((int) currentPreroll);
     try {
       final File sandbox = this.sandbox.getNewSandbox();
       info("Writing slices to: " + sandbox);
@@ -154,9 +179,12 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     final double vCenter = canvas.getHeight() / 2;
     final GraphicsContext gc = canvas.getGraphicsContext2D();
     gc.setFill(Color.BLUE);
+    int prerollSamples = (int) ac.msToSamples(currentPreroll);
     info("Transient locator: " + locator + ", Drawing transient markers. size: " + transients.size());
+    info("Preroll " + currentPreroll + " becomes " + prerollSamples + " samples");
+
     for (Transient t : transients) {
-      double x = t.getSampleIndex() / samplesPerPixel;
+      double x = (t.getSampleIndex() / samplesPerPixel) - (prerollSamples / samplesPerPixel);
       double y = 0;
       double w = 1;
       gc.fillRect(x, y, w, vCenter);

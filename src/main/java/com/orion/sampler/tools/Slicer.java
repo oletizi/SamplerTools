@@ -22,8 +22,8 @@ public class Slicer {
   public List<Sample> slice(int prerollMs) {
 //    float[][] buff = new float[(int) sourceSample.getNumFrames()][sourceSample.getNumChannels()];
 //    info("sourceSample frameCount: " + sourceSample.getNumFrames() + ", data: " + Arrays.deepToString(buff));
-
     final int preRollSamples = (int) sourceSample.msToSamples(prerollMs);
+    info("Preroll of " + prerollMs + " becomes " + preRollSamples + " samples.");
     final List<Sample> rv = new ArrayList<>(locator.getTransients().size());
     int currentFrame = 0;
     for (Transient slicepoint : locator.getTransients()) {
