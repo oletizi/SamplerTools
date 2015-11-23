@@ -1,5 +1,8 @@
 package com.orion.sampler.tools.ui;
 
+import com.orion.sampler.features.Transient;
+import com.orion.sampler.features.TransientLocator;
+import com.orion.sampler.features.TransientObserver;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -15,33 +18,26 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.paint.Color;
-import net.beadsproject.beads.analysis.featureextractors.FFT;
-import net.beadsproject.beads.analysis.featureextractors.PeakDetector;
-import net.beadsproject.beads.analysis.featureextractors.PowerSpectrum;
-import net.beadsproject.beads.analysis.featureextractors.SpectralDifference;
-import net.beadsproject.beads.analysis.segmenters.ShortFrameSegmenter;
 import net.beadsproject.beads.core.AudioContext;
-import net.beadsproject.beads.core.AudioIO;
 import net.beadsproject.beads.core.Bead;
 import net.beadsproject.beads.core.UGen;
 import net.beadsproject.beads.core.io.JavaSoundAudioIO;
-import net.beadsproject.beads.core.io.NonrealtimeIO;
 import net.beadsproject.beads.data.Sample;
 import net.beadsproject.beads.ugens.BiquadFilter;
 import net.beadsproject.beads.ugens.SamplePlayer;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 
 public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private final Scene scene;
-  private final Group root;
   private final Canvas canvas;
-  private final File sampleFile;
   private final Sample sample;
   private final long frameCount;
   private final int channelCount;
@@ -57,22 +53,13 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private float transientThreshold = 0.01f;
   private float transientZoomFactor = 1.5f;
 
-  private ChangeListener<? super Number> widthListener = new ChangeListener<Number>() {
-    @Override
-    public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
-      updateView();
-    }
-  };
-  private ChangeListener<? super Number> heightListener = widthListener;
+  private ChangeListener<? super Number> widthListener = (observable, oldValue, newValue) -> updateView();
 
-  private Map<Integer, Canvas> canvases = new HashMap<>();
   private Set<KeyCode> pressedKeys = new HashSet<>();
 
   public Controller(Scene scene, Group root, Canvas canvas, File sampleFile) throws IOException {
     this.scene = scene;
-    this.root = root;
     this.canvas = canvas;
-    this.sampleFile = sampleFile;
     sample = new Sample(sampleFile.getAbsolutePath());
     ac = new AudioContext(new JavaSoundAudioIO());
     sampleRateFactor = sample.getSampleRate() / ac.getSampleRate();
@@ -80,7 +67,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     filter.setFrequency(8 * 1000f);
     ac.out.addInput(filter);
     player = new Player(ac, sample);
-    locator = new TransientLocator(sample, transientThreshold);
+    locator = new TransientLocator(sample, transientThreshold, filter, player);
     frameCount = sample.getNumFrames();
     channelCount = sample.getNumChannels();
     canvas.setWidth(frameCount / channelCount / samplesPerPixel);
@@ -91,8 +78,6 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     scrollPane.setHmax(sample.getNumFrames() / (double) samplesPerPixel);
     root.getChildren().add(scrollPane);
     drawCanvas();
-
-    canvases.put(samplesPerPixel, canvas);
   }
 
 
@@ -115,12 +100,10 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     gc.setFill(Color.BLUE);
     info("Transient locator: " + locator + ", Drawing transient markers. size: " + transients.size());
     for (Transient t : transients) {
-      double x = t.sample / samplesPerPixel;
+      double x = t.getSampleIndex() / samplesPerPixel;
       double y = 0;
       double w = 1;
-      double h = vCenter;
-      //info("Marker at: " + x + ", y: " + y + ", w: " + w + ", h: " + h);
-      gc.fillRect(x, y, w, h);
+      gc.fillRect(x, y, w, vCenter);
     }
 
   }
@@ -161,8 +144,10 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
   @Override
   public void handle(Event event) {
-    if ((event instanceof MouseEvent) || event instanceof ScrollEvent) {
-    } else if (event instanceof KeyEvent) {
+    if (!((event instanceof MouseEvent) || event instanceof ScrollEvent)) {
+      info("Event");
+    }
+    if (event instanceof KeyEvent) {
       final KeyEvent keyEvent = (KeyEvent) event;
       final KeyCode code = keyEvent.getCode();
 
@@ -189,9 +174,6 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
         final boolean removed = pressedKeys.remove(code);
         assert removed;
       }
-
-    } else {
-      info("Event: " + event);
     }
   }
 
@@ -210,14 +192,14 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private void decreaseTransientThreshold() {
     this.transientThreshold = transientThreshold / transientZoomFactor;
     info("decreaseTransientThreshold: " + transientThreshold);
-    locator = new TransientLocator(sample, transientThreshold);
+    locator = new TransientLocator(sample, transientThreshold, filter, player);
     drawCanvas();
   }
 
   private void increaseTransientThreshold() {
     this.transientThreshold = transientThreshold * transientZoomFactor;
     info("increaseTransientThreshold: " + transientThreshold);
-    locator = new TransientLocator(sample, transientThreshold);
+    locator = new TransientLocator(sample, transientThreshold, filter, player);
     drawCanvas();
   }
 
@@ -262,17 +244,11 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     return widthListener;
   }
 
-  public ChangeListener<? super Number> getHeightListener() {
-    return heightListener;
-  }
-
-  private class Player extends UGen implements Runnable {
+  private class Player extends UGen implements Runnable, TransientObserver {
     private final AudioContext ac;
-    private final Sample sample;
     private final SamplePlayer player;
-    private final BlockingQueue<Object> updateQueue = new ArrayBlockingQueue<Object>(1);
-    private TransientLocator transientLocator;
-    private boolean playing = false;
+    private final BlockingQueue<Object> updateQueue;
+    private boolean playing;
     private Sample click;
     private int currentSample = 0;
 
@@ -281,10 +257,8 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
       this.ac = ac;
       ac.out.addDependent(this);
 
-      this.sample = sample;
       player = new SamplePlayer(ac, sample);
       player.setEndListener(this);
-      //ac.out.addInput(player);
       player.reset();
       filter.addInput(player);
       try {
@@ -292,12 +266,12 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
       } catch (IOException e) {
         e.printStackTrace();
       }
+      playing = false;
+      updateQueue = new ArrayBlockingQueue<>(1);
     }
 
     public void updateTransientLocator() {
-      if (transientLocator == null || transientThreshold != transientLocator.threshold) {
-        transientLocator = new TransientLocator(ac, transientThreshold, this);
-      }
+      new TransientLocator(ac, transientThreshold, filter, this);
     }
 
     public void play() {
@@ -310,7 +284,8 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
       player.start();
     }
 
-    public void playClick() {
+    @Override
+    public void notifyTransient() {
       final SamplePlayer clickPlayer = new SamplePlayer(ac, click);
       ac.out.addInput(clickPlayer);
       player.start();
@@ -349,9 +324,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
       double y = 0;
       double w = 1;
       double h = canvas.getHeight();
-      //info("draw cursor: x: " + x + ", y: " + y + ", w: " + w + ", h: " + h);
       canvas.getGraphicsContext2D().fillRect(x, y, w, h);
-      final double hmax = scrollPane.getHmax();
       final double hvalue = scrollPane.getHvalue();
 
       final double paneWidth = scrollPane.getWidth();
@@ -381,105 +354,4 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     }
   }
 
-  private class Transient {
-    double time;
-    double sample;
-
-    public Transient(double time, double sample) {
-      this.time = time;
-      this.sample = sample;
-    }
-  }
-
-  private class TransientLocator extends Bead {
-    private final AudioIO io = new NonrealtimeIO();
-    private final AudioContext ac;
-    private final float threshold;
-    private final PeakDetector od;
-    private final List<Transient> transients = new ArrayList<>();
-    private final Player clickPlayer;
-    private SamplePlayer player;
-    private boolean running = true;
-
-
-    public TransientLocator(final Sample sample, float threshold) {
-      this(new AudioContext(new NonrealtimeIO()), threshold, null);
-      player = new SamplePlayer(ac, sample);
-      player.setEndListener(this);
-      ac.out.addDependent(player);
-
-      filter.addInput(player);
-      //and begin
-      info("Starting non-realtime io...");
-      ac.start();
-      player.start();
-    }
-
-    public TransientLocator(final AudioContext ac, float threshold, final Player clickPlayer) {
-      super();
-      this.ac = ac;
-      this.threshold = threshold;
-      this.clickPlayer = clickPlayer;
-      /*
-       * To analyse a signal, build an analysis chain.
-       * We also manually set parameters of the sfs.
-       */
-      ShortFrameSegmenter sfs = new ShortFrameSegmenter(ac);
-      sfs.setChunkSize(2048);
-      sfs.setHopSize(441);
-
-      //out.addInput(filter);
-      sfs.addInput(filter);
-      FFT fft = new FFT();
-      PowerSpectrum ps = new PowerSpectrum();
-      sfs.addListener(fft);
-      fft.addListener(ps);
-
-      /*
-       * Given the power spectrum we can now detect changes in spectral energy.
-       */
-      SpectralDifference sd = new SpectralDifference(ac.getSampleRate());
-      ps.addListener(sd);
-      od = new PeakDetector();
-      sd.addListener(od);
-
-      /*
-       * These parameters will need to be adjusted based on the
-       * type of music. This demo uses the mouse position to adjust
-       * them dynamically.
-       * mouse.x controls Threshold, mouse.y controls Alpha
-       */
-      od.setThreshold(threshold);
-      od.setAlpha(.9f);
-
-      /*
-       * OnsetDetector sends messages whenever it detects an onset.
-       */
-      od.addMessageListener(this);
-
-      ac.out.addDependent(sfs);
-
-    }
-
-    public List<Transient> getTransients() {
-      return new ArrayList(transients);
-    }
-
-    @Override
-    protected void messageReceived(Bead message) {
-      super.messageReceived(message);
-      if (message == player && running) {
-        info("stopping player.");
-        ac.stop();
-        running = false;
-      }
-      if (message == od) {
-        //info(ac.getAudioIO() + " transient at: " + ac.getTime() + "ms, sample: " + ac.msToSamples(ac.getTime()));
-        if (clickPlayer != null) {
-          clickPlayer.playClick();
-        }
-        transients.add(new Transient(ac.getTime(), ac.msToSamples(ac.getTime())));
-      }
-    }
-  }
 }

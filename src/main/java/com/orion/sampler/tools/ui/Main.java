@@ -28,7 +28,6 @@ public class Main extends Application {
 
     scene.addEventFilter(EventType.ROOT, controller);
     scene.widthProperty().addListener(controller.getWidthListener());
-    scene.heightProperty().addListener(controller.getHeightListener());
 
     primaryStage.show();
     controller.updateView();
