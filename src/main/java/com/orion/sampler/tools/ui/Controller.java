@@ -22,6 +22,7 @@ import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.core.Bead;
 import net.beadsproject.beads.core.UGen;
 import net.beadsproject.beads.core.io.JavaSoundAudioIO;
+import net.beadsproject.beads.core.io.NonrealtimeIO;
 import net.beadsproject.beads.data.Sample;
 import net.beadsproject.beads.ugens.BiquadFilter;
 import net.beadsproject.beads.ugens.SamplePlayer;
@@ -44,7 +45,9 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private final ScrollPane scrollPane;
   private final Player player;
   private final BiquadFilter filter;
+  private final BiquadFilter offlineFilter;
   private final AudioContext ac;
+  private final AudioContext offlineAc;
   private final float sampleRateFactor;
   private TransientLocator locator;
   private int samplesPerPixel = 1000;
@@ -52,6 +55,8 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private int vertScale = 1000;
   private float transientThreshold = 0.01f;
   private float transientZoomFactor = 1.5f;
+
+  private float filterCutoff = 8 * 1000f;
 
   private ChangeListener<? super Number> widthListener = (observable, oldValue, newValue) -> updateView();
 
@@ -61,13 +66,20 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     this.scene = scene;
     this.canvas = canvas;
     sample = new Sample(sampleFile.getAbsolutePath());
+    offlineAc = new AudioContext(new NonrealtimeIO());
     ac = new AudioContext(new JavaSoundAudioIO());
     sampleRateFactor = sample.getSampleRate() / ac.getSampleRate();
+
     filter = new BiquadFilter(ac, 2, BiquadFilter.Type.HP);
-    filter.setFrequency(8 * 1000f);
+    offlineFilter = new BiquadFilter(offlineAc, 2, BiquadFilter.Type.HP);
+
+    filter.setFrequency(filterCutoff);
+    offlineFilter.setFrequency(filterCutoff);
+
+
     ac.out.addInput(filter);
     player = new Player(ac, sample);
-    locator = new TransientLocator(sample, transientThreshold, filter, player);
+    locator = new TransientLocator(offlineAc, sample, transientThreshold, offlineFilter, player);
     frameCount = sample.getNumFrames();
     channelCount = sample.getNumChannels();
     canvas.setWidth(frameCount / channelCount / samplesPerPixel);
@@ -192,14 +204,14 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private void decreaseTransientThreshold() {
     this.transientThreshold = transientThreshold / transientZoomFactor;
     info("decreaseTransientThreshold: " + transientThreshold);
-    locator = new TransientLocator(sample, transientThreshold, filter, player);
+    locator = new TransientLocator(offlineAc, sample, transientThreshold, offlineFilter, player);
     drawCanvas();
   }
 
   private void increaseTransientThreshold() {
     this.transientThreshold = transientThreshold * transientZoomFactor;
     info("increaseTransientThreshold: " + transientThreshold);
-    locator = new TransientLocator(sample, transientThreshold, filter, player);
+    locator = new TransientLocator(offlineAc, sample, transientThreshold, offlineFilter, player);
     drawCanvas();
   }
 

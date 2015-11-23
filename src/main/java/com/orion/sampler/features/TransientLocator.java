@@ -8,7 +8,6 @@ import net.beadsproject.beads.analysis.segmenters.ShortFrameSegmenter;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.core.Bead;
 import net.beadsproject.beads.core.UGen;
-import net.beadsproject.beads.core.io.NonrealtimeIO;
 import net.beadsproject.beads.data.Sample;
 import net.beadsproject.beads.ugens.IIRFilter;
 import net.beadsproject.beads.ugens.SamplePlayer;
@@ -24,8 +23,8 @@ public class TransientLocator extends UGen {
   private boolean running = true;
   private final TransientObserver observer;
 
-  public TransientLocator(final Sample sample, float threshold, final IIRFilter filter, final TransientObserver observer) {
-    this(new AudioContext(new NonrealtimeIO()), threshold, filter, observer);
+  public TransientLocator(final AudioContext ac, final Sample sample, float threshold, final IIRFilter filter, final TransientObserver observer) {
+    this(ac, threshold, filter, observer);
     player = new SamplePlayer(ac, sample);
     player.setEndListener(this);
     ac.out.addDependent(player);
