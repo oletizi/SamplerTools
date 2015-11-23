@@ -3,6 +3,8 @@ package com.orion.sampler.tools.ui;
 import com.orion.sampler.features.Transient;
 import com.orion.sampler.features.TransientLocator;
 import com.orion.sampler.features.TransientObserver;
+import com.orion.sampler.io.Sandbox;
+import com.orion.sampler.tools.Slicer;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -12,11 +14,14 @@ import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.core.Bead;
@@ -61,8 +66,10 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private ChangeListener<? super Number> widthListener = (observable, oldValue, newValue) -> updateView();
 
   private Set<KeyCode> pressedKeys = new HashSet<>();
+  private final Sandbox sandbox;
 
-  public Controller(Scene scene, Group root, Canvas canvas, File sampleFile) throws IOException {
+  public Controller(final Sandbox sandbox, final Scene scene, final Group root, final Canvas canvas, final File sampleFile) throws IOException {
+    this.sandbox = sandbox;
     this.scene = scene;
     this.canvas = canvas;
     sample = new Sample(sampleFile.getAbsolutePath());
@@ -82,24 +89,61 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     locator = new TransientLocator(offlineAc, sample, transientThreshold, offlineFilter, player);
     frameCount = sample.getNumFrames();
     channelCount = sample.getNumChannels();
-    canvas.setWidth(frameCount / channelCount / samplesPerPixel);
+    //
     scrollPane = new ScrollPane();
     scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
     scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
     scrollPane.setContent(canvas);
+    //scrollPane.setPrefWidth(scene.getWidth());
     scrollPane.setHmax(sample.getNumFrames() / (double) samplesPerPixel);
-    root.getChildren().add(scrollPane);
+
+    final Button sliceButton = new Button("Slice");
+    final HBox controlRow1 = new HBox(20);
+    controlRow1.getChildren().add(sliceButton);
+
+    final VBox controlBox = new VBox();
+    controlBox.getChildren().add(controlRow1);
+
+    final VBox containerBox = new VBox(20);
+
+    containerBox.setPrefWidth(700);
+    containerBox.getChildren().add(scrollPane);
+    containerBox.getChildren().add(controlBox);
+
+    //root.getChildren().add(scrollPane);
+    root.getChildren().add(containerBox);
+
+    // set up actions
+    sliceButton.setOnAction(event -> slice());
+
     drawCanvas();
+    //updateView();
   }
 
 
+  private void slice() {
+    final List<Sample> slices = new Slicer(offlineAc, locator).slice(0);
+    try {
+      final File sandbox = this.sandbox.getNewSandbox();
+      info("Writing slices to: " + sandbox);
+      for (Sample slice : slices) {
+        slice.write(new File(sandbox, "slice-" + System.currentTimeMillis() + ".wav").getAbsolutePath());
+      }
+    } catch (IOException e) {
+      // TODO: add error handling
+      e.printStackTrace();
+    }
+  }
+
   public void updateView() {
+    info("updateView: screen width: " + scene.getWidth());
     scrollPane.setFitToHeight(true);
     scrollPane.setPrefWidth(scene.getWidth());
   }
 
   public void drawCanvas() {
     final GraphicsContext gc = canvas.getGraphicsContext2D();
+    info("drawCanvas: width: " + canvas.getWidth());
     gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
     drawWave();
     drawTransientMarkers();
@@ -122,6 +166,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
   private void drawWave() {
     final GraphicsContext gc = canvas.getGraphicsContext2D();
+    canvas.setWidth(frameCount / samplesPerPixel);
     final double vCenter = canvas.getHeight() / 2;
     info("vCenter: " + vCenter);
     gc.setFill(Color.BLACK);

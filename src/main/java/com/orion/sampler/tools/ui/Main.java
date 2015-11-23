@@ -1,5 +1,6 @@
 package com.orion.sampler.tools.ui;
 
+import com.orion.sampler.io.Sandbox;
 import javafx.application.Application;
 import javafx.event.EventType;
 import javafx.scene.Group;
@@ -23,8 +24,8 @@ public class Main extends Application {
     //root.getChildren().add(canvas);
 
     primaryStage.setScene(scene);
-    final URL systemResource = ClassLoader.getSystemResource("audio/gt.wav");
-    final Controller controller = new Controller(scene, root, canvas, new File(systemResource.getFile()));
+    final URL systemResource = ClassLoader.getSystemResource("audio/count.wav");
+    final Controller controller = new Controller(new Sandbox(), scene, root, canvas, new File(systemResource.getFile()));
 
     scene.addEventFilter(EventType.ROOT, controller);
     scene.widthProperty().addListener(controller.getWidthListener());
