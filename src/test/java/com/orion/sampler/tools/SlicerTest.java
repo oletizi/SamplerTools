@@ -17,8 +17,8 @@ import static org.mockito.Mockito.*;
 
 public class SlicerTest {
 
-  private Slicer slicer;
-  private TransientObserver observer;
+  protected Slicer slicer;
+  protected TransientObserver observer;
 
   @Before
   public void before() throws Exception {
@@ -33,7 +33,7 @@ public class SlicerTest {
 
   @Test
   public void test() throws Exception {
-    final List<Sample> slices = slicer.slice();
+    final List<Sample> slices = slicer.slice(10);
 
     verify(observer, times(4)).notifyTransient();
     assertEquals(4, slices.size());
