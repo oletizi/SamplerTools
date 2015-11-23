@@ -22,9 +22,10 @@ public class TransientLocator extends UGen {
   private SamplePlayer player;
   private boolean running = true;
   private final TransientObserver observer;
+  private final float sampleRateFactor;
 
   public TransientLocator(final AudioContext ac, final Sample sample, float threshold, final IIRFilter filter, final TransientObserver observer) {
-    this(ac, threshold, filter, observer);
+    this(ac, sample.getSampleRate() / ac.getSampleRate(), threshold, filter, observer);
     player = new SamplePlayer(ac, sample);
     player.setEndListener(this);
     ac.out.addDependent(player);
@@ -37,7 +38,13 @@ public class TransientLocator extends UGen {
   }
 
   public TransientLocator(final AudioContext ac, float threshold, final IIRFilter filter, final TransientObserver observer) {
+    this(ac, 1, threshold, filter, observer);
+  }
+
+  private TransientLocator(final AudioContext ac, final float sampleRateFactor, float threshold, final IIRFilter filter, final TransientObserver observer) {
+
     super(ac);
+    this.sampleRateFactor = sampleRateFactor;
     this.observer = observer;
     this.ac = ac;
     /*
@@ -97,9 +104,7 @@ public class TransientLocator extends UGen {
       //info(ac.getAudioIO() + " transient at: " + ac.getTime() + "ms, sample: " + ac.msToSamples(ac.getTime()));
       observer.notifyTransient();
 
-      // TODO: Figure this out...
-      info("Figure out if we need to adjust sample index for differen sample rates");
-      transients.add(new Transient(ac.getTime(), (int) ac.msToSamples(ac.getTime())));
+      transients.add(new Transient(ac.getTime(), (int) (ac.msToSamples(ac.getTime()) * sampleRateFactor)));
     }
   }
 
