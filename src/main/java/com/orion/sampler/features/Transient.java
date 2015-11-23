@@ -13,7 +13,7 @@ public class Transient {
     return sampleIndex;
   }
 
-  public double getSample() {
-    return sampleIndex;
+  public double getTime() {
+    return time;
   }
 }

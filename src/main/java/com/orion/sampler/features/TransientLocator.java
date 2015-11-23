@@ -117,4 +117,7 @@ public class TransientLocator extends UGen {
     System.out.println(s);
   }
 
+  public Sample getSample() {
+    return player == null ? null : player.getSample();
+  }
 }
