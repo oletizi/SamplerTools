@@ -167,6 +167,8 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
           player.play();
         } else if (shouldStop()) {
           player.pause();
+        } else if (shouldReset()) {
+          player.reset();
         }
 
       } else if (keyEvent.getEventType().equals(KeyEvent.KEY_RELEASED)) {
@@ -177,6 +179,10 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     } else {
       info("Event: " + event);
     }
+  }
+
+  private boolean shouldReset() {
+    return pressedKeys.size() == 1 && pressedKeys.contains(KeyCode.ENTER);
   }
 
   private boolean shouldStop() {
@@ -250,7 +256,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     private final AudioContext ac;
     private final Sample sample;
     private final SamplePlayer player;
-    private final TransientLocator transientLocator;
+    private TransientLocator transientLocator;
     private boolean playing = false;
     private Sample click;
 
@@ -266,7 +272,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
       player = new SamplePlayer(ac, sample);
       player.setEndListener(this);
       ac.out.addInput(player);
-      transientLocator = new TransientLocator(ac, transientThreshold, this);
+
       //ac.out.addDependent(player);
       ac.start();
       player.reset();
@@ -277,8 +283,15 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
       }
     }
 
+    public void updateTransientLocator() {
+      if (transientLocator == null || transientThreshold != transientLocator.threshold) {
+        transientLocator = new TransientLocator(ac, transientThreshold, this);
+      }
+    }
+
     public void play() {
       info("play!");
+      updateTransientLocator();
       playing = true;
       player.start();
     }
