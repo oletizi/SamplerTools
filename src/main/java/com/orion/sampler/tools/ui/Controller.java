@@ -1,5 +1,6 @@
 package com.orion.sampler.tools.ui;
 
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.Event;
@@ -32,6 +33,8 @@ import net.beadsproject.beads.ugens.SamplePlayer;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 
 public class Controller implements EventHandler<Event>, ChangeListener<Number> {
@@ -44,6 +47,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private final int channelCount;
   private final ScrollPane scrollPane;
   private final Player player;
+  private final BiquadFilter filter;
   private TransientLocator locator;
   private int samplesPerPixel = 1000;
   private int zoomFactor = 2;
@@ -68,7 +72,11 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     this.canvas = canvas;
     this.sampleFile = sampleFile;
     sample = new Sample(sampleFile.getAbsolutePath());
-    player = new Player(sample);
+    AudioContext ac = new AudioContext(new JavaSoundAudioIO());
+    filter = new BiquadFilter(ac, 2, BiquadFilter.Type.HP);
+    filter.setFrequency(8 * 1000f);
+    ac.out.addInput(filter);
+    player = new Player(ac, sample);
     locator = new TransientLocator(sample, transientThreshold);
     frameCount = sample.getNumFrames();
     channelCount = sample.getNumChannels();
@@ -77,7 +85,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
     scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
     scrollPane.setContent(canvas);
-    scrollPane.setHmax(scene.getWidth());
+    scrollPane.setHmax(sample.getNumFrames() / (double) samplesPerPixel);
     root.getChildren().add(scrollPane);
     drawCanvas();
 
@@ -98,17 +106,17 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   }
 
   private void drawTransientMarkers() {
-    info("Drawing transient markers...");
     final List<Transient> transients = locator.getTransients();
     final double vCenter = canvas.getHeight() / 2;
     final GraphicsContext gc = canvas.getGraphicsContext2D();
     gc.setFill(Color.BLUE);
+    info("Transient locator: " + locator + ", Drawing transient markers. size: " + transients.size());
     for (Transient t : transients) {
       double x = t.sample / samplesPerPixel;
       double y = 0;
       double w = 1;
       double h = vCenter;
-      info("Marker at: " + x + ", y: " + y + ", w: " + w + ", h: " + h);
+      //info("Marker at: " + x + ", y: " + y + ", w: " + w + ", h: " + h);
       gc.fillRect(x, y, w, h);
     }
 
@@ -252,30 +260,27 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     return heightListener;
   }
 
-  private class Player extends Bead {
+  private class Player extends UGen implements Runnable {
     private final AudioContext ac;
     private final Sample sample;
     private final SamplePlayer player;
+    private final BlockingQueue<Object> updateQueue = new ArrayBlockingQueue<Object>(1);
     private TransientLocator transientLocator;
     private boolean playing = false;
     private Sample click;
-
-    public Player(Sample sample) {
-      this(new AudioContext(new JavaSoundAudioIO()), sample);
-
-    }
+    private int currentSample = 0;
 
     public Player(AudioContext ac, Sample sample) {
-      super();
+      super(ac);
       this.ac = ac;
+      ac.out.addDependent(this);
+
       this.sample = sample;
       player = new SamplePlayer(ac, sample);
       player.setEndListener(this);
-      ac.out.addInput(player);
-
-      //ac.out.addDependent(player);
-      ac.start();
+      //ac.out.addInput(player);
       player.reset();
+      filter.addInput(player);
       try {
         click = new Sample(ClassLoader.getSystemResource("audio/click.wav").getFile());
       } catch (IOException e) {
@@ -291,6 +296,9 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
     public void play() {
       info("play!");
+      if (!ac.isRunning()) {
+        ac.start();
+      }
       updateTransientLocator();
       playing = true;
       player.start();
@@ -304,6 +312,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
     public void pause() {
       info("pause!");
+      ac.stop();
       playing = false;
       player.pause(true);
     }
@@ -312,6 +321,9 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
       info("reset!");
       player.reset();
       pause();
+      currentSample = 0;
+      drawCanvas();
+      scrollPane.setHvalue(0);
     }
 
     @Override
@@ -323,6 +335,43 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
     public boolean playing() {
       return playing;
+    }
+
+    @Override
+    public void run() {
+      double x = currentSample / samplesPerPixel;
+      double y = 0;
+      double w = 1;
+      double h = canvas.getHeight();
+      //info("draw cursor: x: " + x + ", y: " + y + ", w: " + w + ", h: " + h);
+      canvas.getGraphicsContext2D().fillRect(x, y, w, h);
+      final double hmax = scrollPane.getHmax();
+      final double hvalue = scrollPane.getHvalue();
+
+      final double paneWidth = scrollPane.getWidth();
+      if (hvalue + paneWidth < x) {
+        scrollPane.setHvalue(x);
+      }
+
+      try {
+        updateQueue.put(this);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    }
+
+    @Override
+    public void calculateBuffer() {
+      if (currentSample % (this.bufferSize * 4) == 0) {
+        //info("currentSample: " + currentSample);
+        Platform.runLater(this);
+        try {
+          updateQueue.take();
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      }
+      currentSample += this.bufferSize;
     }
   }
 
@@ -341,23 +390,30 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     private final AudioContext ac;
     private final float threshold;
     private final PeakDetector od;
-    private final BiquadFilter filter;
     private final List<Transient> transients = new ArrayList<>();
     private final Player clickPlayer;
     private SamplePlayer player;
-    private UGen out;
     private boolean running = true;
+
+
+    public TransientLocator(final Sample sample, float threshold) {
+      this(new AudioContext(new NonrealtimeIO()), threshold, null);
+      player = new SamplePlayer(ac, sample);
+      player.setEndListener(this);
+      ac.out.addDependent(player);
+
+      filter.addInput(player);
+      //and begin
+      info("Starting non-realtime io...");
+      ac.start();
+      player.start();
+    }
 
     public TransientLocator(final AudioContext ac, float threshold, final Player clickPlayer) {
       super();
       this.ac = ac;
       this.threshold = threshold;
       this.clickPlayer = clickPlayer;
-
-      out = ac.out;
-
-      filter = new BiquadFilter(ac, 2, BiquadFilter.Type.HP);
-      filter.setFrequency(4000f);
       /*
        * To analyse a signal, build an analysis chain.
        * We also manually set parameters of the sfs.
@@ -365,7 +421,9 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
       ShortFrameSegmenter sfs = new ShortFrameSegmenter(ac);
       sfs.setChunkSize(2048);
       sfs.setHopSize(441);
-      sfs.addInput(ac.out);
+
+      //out.addInput(filter);
+      sfs.addInput(filter);
       FFT fft = new FFT();
       PowerSpectrum ps = new PowerSpectrum();
       sfs.addListener(fft);
@@ -397,20 +455,6 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
     }
 
-    public TransientLocator(final Sample sample, float threshold) {
-      //super();
-      this(new AudioContext(new NonrealtimeIO()), threshold, null);
-      player = new SamplePlayer(ac, sample);
-      player.setEndListener(this);
-      out.addDependent(player);
-
-      filter.addInput(player);
-      out.addInput(filter);
-      ac.out.addInput(out);
-      //and begin
-      ac.start();
-    }
-
     public List<Transient> getTransients() {
       return new ArrayList(transients);
     }
@@ -424,7 +468,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
         running = false;
       }
       if (message == od) {
-        info("transient at: " + ac.getTime() + "ms, sample: " + ac.msToSamples(ac.getTime()));
+        //info(ac.getAudioIO() + " transient at: " + ac.getTime() + "ms, sample: " + ac.msToSamples(ac.getTime()));
         if (clickPlayer != null) {
           clickPlayer.playClick();
         }
