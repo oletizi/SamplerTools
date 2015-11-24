@@ -24,7 +24,7 @@ public class Main extends Application {
     //root.getChildren().add(canvas);
 
     primaryStage.setScene(scene);
-    final URL systemResource = ClassLoader.getSystemResource("audio/count.wav");
+    final URL systemResource = ClassLoader.getSystemResource("audio/snare.wav");
     final Controller controller = new Controller(new Sandbox(), scene, root, canvas, new File(systemResource.getFile()));
 
     scene.addEventFilter(EventType.ROOT, controller);

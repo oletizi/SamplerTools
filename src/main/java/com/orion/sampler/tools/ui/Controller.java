@@ -71,6 +71,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private Set<KeyCode> pressedKeys = new HashSet<>();
   private final Sandbox sandbox;
   private double currentPreroll;
+  private File sandboxFolder;
 
   public Controller(final Sandbox sandbox, final Scene scene, final Group root, final Canvas canvas, final File sampleFile) throws IOException {
     this.sandbox = sandbox;
@@ -149,10 +150,10 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private void slice() {
     final List<Sample> slices = new Slicer(offlineAc, locator).slice((int) currentPreroll);
     try {
-      final File sandbox = this.sandbox.getNewSandbox();
-      info("Writing slices to: " + sandbox);
+      sandboxFolder = sandbox.getNewSandbox();
+      info("Writing slices to: " + sandboxFolder);
       for (Sample slice : slices) {
-        slice.write(new File(sandbox, "slice-" + System.currentTimeMillis() + ".wav").getAbsolutePath());
+        slice.write(new File(sandboxFolder, "slice-" + System.currentTimeMillis() + ".wav").getAbsolutePath());
       }
     } catch (IOException e) {
       // TODO: add error handling
