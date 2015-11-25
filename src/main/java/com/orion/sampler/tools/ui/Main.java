@@ -25,7 +25,7 @@ public class Main extends Application {
 
     primaryStage.setScene(scene);
     final URL systemResource = ClassLoader.getSystemResource("audio/snare.wav");
-    final Controller controller = new Controller(new Sandbox(), scene, root, canvas, new File(systemResource.getFile()));
+    final Controller controller = new Controller(new Sandbox(), primaryStage, scene, root, canvas, new File(systemResource.getFile()));
 
     scene.addEventFilter(EventType.ROOT, controller);
     scene.widthProperty().addListener(controller.getWidthListener());

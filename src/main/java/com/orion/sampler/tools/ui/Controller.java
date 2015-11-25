@@ -25,6 +25,8 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.core.Bead;
 import net.beadsproject.beads.core.UGen;
@@ -44,6 +46,7 @@ import java.util.concurrent.BlockingQueue;
 
 
 public class Controller implements EventHandler<Event>, ChangeListener<Number> {
+  private final Stage stage;
   private final Scene scene;
   private final Canvas canvas;
   private final Sample sample;
@@ -73,8 +76,9 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private double currentPreroll;
   private File sandboxFolder;
 
-  public Controller(final Sandbox sandbox, final Scene scene, final Group root, final Canvas canvas, final File sampleFile) throws IOException {
+  public Controller(final Sandbox sandbox, Stage stage, final Scene scene, final Group root, final Canvas canvas, final File sampleFile) throws IOException {
     this.sandbox = sandbox;
+    this.stage = stage;
     this.scene = scene;
     this.canvas = canvas;
     sample = new Sample(sampleFile.getAbsolutePath());
@@ -101,6 +105,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     scrollPane.setContent(canvas);
     scrollPane.setHmax(sample.getNumFrames() / (double) samplesPerPixel);
 
+    final Label sliceLabel = new Label("Slices");
     final Button sliceButton = new Button("Slice");
     final Label prerollLabel = new Label("Preroll:");
     prerollSlider = new Slider(0, 100, 0);
@@ -109,14 +114,21 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     prerollSlider.setMajorTickUnit(10);
     prerollSlider.setMinorTickCount(5);
 
+    final Label percussionLabel = new Label("Percussion");
+    final Button percDirButton = new Button("Choose Folder");
+
     final GridPane controlPane = new GridPane();
     controlPane.setHgap(10);
     controlPane.setVgap(10);
 
-    controlPane.add(prerollLabel, 0, 0);
-    controlPane.add(prerollSlider, 1, 0);
-    controlPane.add(sliceButton, 1, 1);
+    // add controls
+    controlPane.add(sliceLabel, 0, 0);
+    controlPane.add(prerollLabel, 0, 1);
+    controlPane.add(prerollSlider, 1, 1);
+    controlPane.add(sliceButton, 1, 2);
 
+    controlPane.add(percussionLabel, 2, 0);
+    controlPane.add(percDirButton, 2, 1);
 
     final VBox containerBox = new VBox(20);
     containerBox.setPrefWidth(700);
@@ -131,9 +143,18 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     prerollSlider.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
       updatePreroll();
     });
+    percDirButton.setOnAction(event -> choosePercussionDirectory());
 
     drawCanvas();
     //updateView();
+  }
+
+  private void choosePercussionDirectory() {
+    info("choose percussion directory...");
+    FileChooser chooser = new FileChooser();
+    chooser.setTitle("Choose Folder");
+    final File file = chooser.showOpenDialog(stage);
+
   }
 
   private void updatePreroll() {
@@ -439,5 +460,4 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
       currentSample += this.bufferSize;
     }
   }
-
 }
