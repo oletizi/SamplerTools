@@ -11,6 +11,8 @@ public class PercussionSourceSampleSelector {
   private Sample clap;
   private Sample cowbell;
   private Sample crash1;
+  private Sample crash2;
+  private Sample himidtom;
 
   public PercussionSourceSampleSelector(final File root) throws IOException {
     this.root = root;
@@ -24,6 +26,10 @@ public class PercussionSourceSampleSelector {
         cowbell = newSample(filename);
       } else if (filename.matches("crash1.*")) {
         crash1 = newSample(filename);
+      } else if (filename.matches("crash2.*")) {
+        crash2 = newSample(filename);
+      } else if (filename.matches("himidtom.*")) {
+        himidtom = newSample(filename);
       }
     }
   }
@@ -62,6 +68,22 @@ public class PercussionSourceSampleSelector {
 
   public boolean hasCrash1() {
     return crash1 != null;
+  }
+
+  public Sample getCrash2() {
+    return crash2;
+  }
+
+  public boolean hasCrash2() {
+    return crash2 != null;
+  }
+
+  public boolean hasHimidtom() {
+    return himidtom != null;
+  }
+
+  public Sample getHimidtom() {
+    return himidtom;
   }
 
   private enum Instrument {

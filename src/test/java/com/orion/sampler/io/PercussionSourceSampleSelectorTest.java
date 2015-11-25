@@ -33,6 +33,13 @@ public class PercussionSourceSampleSelectorTest {
 
     assertTrue(selector.hasCrash1());
     assertEquals(getPath("crash1.wav"), selector.getCrash1().getFileName());
+
+    assertTrue(selector.hasCrash2());
+    assertEquals(getPath("crash2.wav"), selector.getCrash2().getFileName());
+
+    assertTrue(selector.hasHimidtom());
+    assertEquals(getPath("himidtom.wav"), selector.getHimidtom().getFileName());
+
   }
 
   private String getPath(String resource) {

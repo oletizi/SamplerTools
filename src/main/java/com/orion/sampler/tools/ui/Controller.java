@@ -3,6 +3,7 @@ package com.orion.sampler.tools.ui;
 import com.orion.sampler.features.Transient;
 import com.orion.sampler.features.TransientLocator;
 import com.orion.sampler.features.TransientObserver;
+import com.orion.sampler.io.PercussionSourceSampleSelector;
 import com.orion.sampler.io.Sandbox;
 import com.orion.sampler.tools.Slicer;
 import javafx.application.Platform;
@@ -25,7 +26,7 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.stage.FileChooser;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.core.Bead;
@@ -49,16 +50,14 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private final Stage stage;
   private final Scene scene;
   private final Canvas canvas;
-  private final Sample sample;
-  private final long frameCount;
-  private final int channelCount;
+  private Sample sample;
   private final ScrollPane scrollPane;
-  private final Player player;
+  private Player player;
   private final BiquadFilter filter;
   private final BiquadFilter offlineFilter;
   private final AudioContext ac;
   private final AudioContext offlineAc;
-  private final float sampleRateFactor;
+  private float sampleRateFactor;
   private final Slider prerollSlider;
   private TransientLocator locator;
   private int samplesPerPixel = 1000;
@@ -75,15 +74,18 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private final Sandbox sandbox;
   private double currentPreroll;
   private File sandboxFolder;
+  private PercussionSourceSampleSelector percussionSelector;
 
   public Controller(final Sandbox sandbox, Stage stage, final Scene scene, final Group root, final Canvas canvas, final File sampleFile) throws IOException {
     this.sandbox = sandbox;
     this.stage = stage;
     this.scene = scene;
     this.canvas = canvas;
+
+    ac = new AudioContext(new JavaSoundAudioIO());
+
     sample = new Sample(sampleFile.getAbsolutePath());
     offlineAc = new AudioContext(new NonrealtimeIO());
-    ac = new AudioContext(new JavaSoundAudioIO());
     sampleRateFactor = sample.getSampleRate() / ac.getSampleRate();
 
     filter = new BiquadFilter(ac, 2, BiquadFilter.Type.HP);
@@ -96,8 +98,6 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     ac.out.addInput(filter);
     player = new Player(ac, sample);
     locator = new TransientLocator(offlineAc, sample, transientThreshold, offlineFilter, player);
-    frameCount = sample.getNumFrames();
-    channelCount = sample.getNumChannels();
 
     scrollPane = new ScrollPane();
     scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
@@ -105,6 +105,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     scrollPane.setContent(canvas);
     scrollPane.setHmax(sample.getNumFrames() / (double) samplesPerPixel);
 
+    // Set up slicer controls
     final Label sliceLabel = new Label("Slices");
     final Button sliceButton = new Button("Slice");
     final Label prerollLabel = new Label("Preroll:");
@@ -114,21 +115,28 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     prerollSlider.setMajorTickUnit(10);
     prerollSlider.setMinorTickCount(5);
 
+    // Set up percussion controls
     final Label percussionLabel = new Label("Percussion");
     final Button percDirButton = new Button("Choose Folder");
+    final Label chinaLabel = new Label("china");
+    final Button loadChinaButton = new Button("Load");
 
     final GridPane controlPane = new GridPane();
     controlPane.setHgap(10);
     controlPane.setVgap(10);
 
-    // add controls
+    // add slicer controls
     controlPane.add(sliceLabel, 0, 0);
     controlPane.add(prerollLabel, 0, 1);
     controlPane.add(prerollSlider, 1, 1);
     controlPane.add(sliceButton, 1, 2);
 
-    controlPane.add(percussionLabel, 2, 0);
-    controlPane.add(percDirButton, 2, 1);
+    // add percussion controls
+    final int percX = 2;
+    controlPane.add(percussionLabel, percX, 0);
+    controlPane.add(percDirButton, percX, 1);
+    controlPane.add(chinaLabel, percX, 2);
+    controlPane.add(loadChinaButton, percX + 1, 2);
 
     final VBox containerBox = new VBox(20);
     containerBox.setPrefWidth(700);
@@ -139,6 +147,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
     // set up actions
     sliceButton.setOnAction(event -> slice());
+    loadChinaButton.setOnAction(event -> loadChina());
 
     prerollSlider.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
       updatePreroll();
@@ -149,11 +158,24 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     //updateView();
   }
 
+  private void loadChina() {
+    if (percussionSelector.hasChina()) {
+      sample = percussionSelector.getChina();
+      info("Loaded china sample. " + sample.getLength() + "ms");
+      updateSample();
+    }
+  }
+
   private void choosePercussionDirectory() {
     info("choose percussion directory...");
-    FileChooser chooser = new FileChooser();
+    DirectoryChooser chooser = new DirectoryChooser();
     chooser.setTitle("Choose Folder");
-    final File file = chooser.showOpenDialog(stage);
+    final File file = chooser.showDialog(stage);
+    try {
+      percussionSelector = new PercussionSourceSampleSelector(file);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
 
   }
 
@@ -216,19 +238,24 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
 
   private void drawWave() {
     final GraphicsContext gc = canvas.getGraphicsContext2D();
-    canvas.setWidth(frameCount / samplesPerPixel);
+    final long canvasWidth = sample.getNumFrames() / samplesPerPixel;
+    info("Setting canvas width: " + canvasWidth + ", frame count: " + sample.getNumFrames() + ", samplesPerPixel: " + samplesPerPixel);
+    canvas.setWidth(canvasWidth);
     final double vCenter = canvas.getHeight() / 2;
-    info("vCenter: " + vCenter);
+    info("Drawing center line at vCenter: " + vCenter);
     gc.setFill(Color.BLACK);
     gc.fillRect(0, vCenter, canvas.getWidth(), 1);
 
-    float[] buffer = new float[channelCount];
+    if (sample.getNumFrames() > Integer.MAX_VALUE) {
+      throw new RuntimeException("FIXME! sample count is greater than int max value.");
+    }
+    float[] buffer = new float[(int) sample.getNumFrames()];
     int x = 0;
     float total = 0;
 
-    info("sample rate: " + sample.getSampleRate() + " ac sample rate: " + ac.getSampleRate() + ", sample length: " + sample.getLength() + "ms, frames: " + frameCount);
+    info("sample rate: " + sample.getSampleRate() + " ac sample rate: " + ac.getSampleRate() + ", sample length: " + sample.getLength() + "ms, frames: " + sample.getNumFrames());
 
-    for (int i = 0; i < frameCount; i++) {
+    for (int i = 0; i < sample.getNumFrames(); i++) {
       sample.getFrame(i, buffer);
       double value = Math.abs(buffer[0]);
       total += value;
@@ -239,6 +266,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
         double h = avg * vertScale;
         double y = vCenter - h;
         double w = 1;
+        info("frame: " + i + " avg: " + avg + ", vertScale: " + vertScale + ", h: " + h);
         gc.fillRect(x, y, w, h);
         total = 0;
       }
@@ -299,15 +327,33 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private void decreaseTransientThreshold() {
     this.transientThreshold = transientThreshold / transientZoomFactor;
     info("decreaseTransientThreshold: " + transientThreshold);
-    locator = new TransientLocator(offlineAc, sample, transientThreshold, offlineFilter, player);
-    drawCanvas();
+    updateTransientLocator();
   }
 
   private void increaseTransientThreshold() {
     this.transientThreshold = transientThreshold * transientZoomFactor;
     info("increaseTransientThreshold: " + transientThreshold);
+    updateTransientLocator();
+  }
+
+  private void updateTransientLocator() {
     locator = new TransientLocator(offlineAc, sample, transientThreshold, offlineFilter, player);
     drawCanvas();
+  }
+
+  private void updateSample() {
+    sampleRateFactor = sample.getSampleRate() / ac.getSampleRate();
+    this.samplesPerPixel = (int) (sample.getNumFrames() / this.stage.getWidth());
+    info("updateSample: sample name: " + sample.getFileName());
+    info("Set samples per pixel: " + samplesPerPixel + ", frame count: " + sample.getNumFrames() + ", stage width: " + stage.getWidth());
+    updatePlayer();
+    updateTransientLocator();
+  }
+
+  private void updatePlayer() {
+    //player.pause(true);
+    player.kill();
+    player = new Player(ac, sample);
   }
 
   private void zoomOut() {
@@ -389,6 +435,12 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
       updateTransientLocator();
       playing = true;
       player.start();
+    }
+
+    @Override
+    public void kill() {
+      super.kill();
+      this.player.kill();
     }
 
     @Override

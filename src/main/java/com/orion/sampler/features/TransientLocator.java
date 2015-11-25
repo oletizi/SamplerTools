@@ -34,6 +34,7 @@ public class TransientLocator extends UGen {
     //and begin
     info("Starting non-realtime io...");
     ac.start();
+    info("Starting sample player...");
     player.start();
   }
 
@@ -101,7 +102,7 @@ public class TransientLocator extends UGen {
       running = false;
     }
     if (message == od) {
-      //info(ac.getAudioIO() + " transient at: " + ac.getTime() + "ms, sample: " + ac.msToSamples(ac.getTime()));
+      info(ac.getAudioIO() + " transient at: " + ac.getTime() + "ms, sample: " + ac.msToSamples(ac.getTime()));
       observer.notifyTransient();
 
       transients.add(new Transient(ac.getTime(), (int) (ac.msToSamples(ac.getTime()) * sampleRateFactor)));
@@ -114,7 +115,7 @@ public class TransientLocator extends UGen {
   }
 
   private void info(String s) {
-    System.out.println(s);
+    System.out.println(getClass().getSimpleName() + ": " + s);
   }
 
   public Sample getSample() {
