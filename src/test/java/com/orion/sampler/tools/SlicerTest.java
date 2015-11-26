@@ -2,6 +2,7 @@ package com.orion.sampler.tools;
 
 import com.orion.sampler.features.TransientLocator;
 import com.orion.sampler.features.TransientObserver;
+import com.orion.sampler.tools.ui.progress.ProgressObserver;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.core.io.NonrealtimeIO;
 import net.beadsproject.beads.data.Sample;
@@ -19,6 +20,7 @@ public class SlicerTest {
 
   protected Slicer slicer;
   protected TransientObserver observer;
+  private ProgressObserver progressObserver;
 
   @Before
   public void before() throws Exception {
@@ -28,7 +30,8 @@ public class SlicerTest {
     observer = mock(TransientObserver.class);
 
     final TransientLocator locator = new TransientLocator(ac, sample, 0, filter, observer);
-    slicer = new Slicer(ac, locator);
+    progressObserver = mock(ProgressObserver.class);
+    slicer = new Slicer(ac, locator, progressObserver);
   }
 
   @Test

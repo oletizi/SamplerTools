@@ -4,13 +4,13 @@ import org.jfugue.theory.Note;
 
 public enum Percussion {
 
-  CHINA(new Note("E2")),
-  CLAP(new Note("Eb1")),
-  COWBELL(new Note("Ab2")),
-  CRASH_1(new Note("C#2")),
-  CRASH_2(new Note("A2")),
-  HIMIDTOM(new Note("C2")),
-  SNARE_1(new Note("D1"));
+  CHINA(new Note(52)),
+  CLAP(new Note(39)),
+  COWBELL(new Note(56)),
+  CRASH1(new Note(49)),
+  CRASH2(new Note(57)),
+  HIMIDTOM(new Note(47)),
+  SNARE1(new Note(38));
 
   private final Note key;
 

@@ -43,7 +43,7 @@ public class PercussionProgramMakerTest {
 
   @Test
   public void test() throws Exception {
-    final String region = maker.createRegion(Percussion.SNARE_1, samples);
+    final String region = maker.createRegion(Percussion.SNARE1, samples);
     info(region);
   }
 

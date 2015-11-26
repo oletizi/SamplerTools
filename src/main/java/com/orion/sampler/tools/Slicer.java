@@ -2,6 +2,7 @@ package com.orion.sampler.tools;
 
 import com.orion.sampler.features.Transient;
 import com.orion.sampler.features.TransientLocator;
+import com.orion.sampler.tools.ui.progress.ProgressObserver;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.data.Sample;
 
@@ -11,23 +12,26 @@ import java.util.List;
 public class Slicer {
   private final AudioContext ac;
   private final TransientLocator locator;
+  private final ProgressObserver progressObserver;
   private final Sample sourceSample;
 
-  public Slicer(AudioContext ac, TransientLocator locator) {
+  public Slicer(AudioContext ac, TransientLocator locator, final ProgressObserver progressObserver) {
     this.ac = ac;
     this.locator = locator;
+    this.progressObserver = progressObserver;
     this.sourceSample = locator.getSample();
   }
 
   public List<Sample> slice(int prerollMs) {
-//    float[][] buff = new float[(int) sourceSample.getNumFrames()][sourceSample.getNumChannels()];
-//    info("sourceSample frameCount: " + sourceSample.getNumFrames() + ", data: " + Arrays.deepToString(buff));
     final int preRollSamples = (int) sourceSample.msToSamples(prerollMs);
     info("Preroll of " + prerollMs + " becomes " + preRollSamples + " samples.");
     final List<Sample> rv = new ArrayList<>(locator.getTransients().size());
+    if (locator.getTransients().isEmpty()) return rv;
     int currentFrame = 0;
+    float progress = 0;
+    final float progressStep = 1 / locator.getTransients().size();
     for (Transient slicepoint : locator.getTransients()) {
-
+      progressObserver.notifyProgress(progress, "Creating slice at sample: " + slicepoint.getSampleIndex());
       final int sampleIndex = calculateSampleIndex(preRollSamples, slicepoint);
 
       final int bufferSize = sampleIndex - currentFrame;
@@ -37,6 +41,7 @@ public class Slicer {
       }
       // update the current frame
       currentFrame = sampleIndex;
+      progressObserver.notifyProgress(progress += progressStep, "Done creating slice.");
     }
 
     // grab the tail of the sample

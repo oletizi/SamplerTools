@@ -57,7 +57,7 @@ public class PercussionProgramMaker {
     final PrintWriter out = new PrintWriter(sbw);
 
     final Map<Percussion, Set<Sample>> samples = selector.getAllSamples();
-
+    info("Creating program from " + samples.size() + " samples...");
     for (Map.Entry<Percussion, Set<Sample>> entry : samples.entrySet()) {
       out.append(createRegion(entry.getKey(), new ArrayList<>(entry.getValue())));
     }
@@ -76,8 +76,14 @@ public class PercussionProgramMaker {
     selector.copyTo(destination);
 
     final Writer out = new OutputStreamWriter(new FileOutputStream(new File(destination, name + ".sfz")));
-    out.write(createProgram());
+    final String program = createProgram();
+    info("Writing program: " + program);
+    out.write(program);
     out.flush();
     out.close();
+  }
+
+  private void info(String s) {
+    System.out.println(getClass().getSimpleName() + ": " + s);
   }
 }

@@ -33,11 +33,11 @@ public class PercussionSourceSampleSelectorTest {
     assertTrue(selector.hasSamplesFor(COWBELL));
     assertTrue(contains("cowbell.wav", selector.getSamplesFor(COWBELL)));
 
-    assertTrue(selector.hasSamplesFor(CRASH_1));
-    assertTrue(contains("crash1.wav", selector.getSamplesFor(CRASH_1)));
+    assertTrue(selector.hasSamplesFor(CRASH1));
+    assertTrue(contains("crash1.wav", selector.getSamplesFor(CRASH1)));
 
-    assertTrue(selector.hasSamplesFor(CRASH_2));
-    assertTrue(contains("crash2.wav", selector.getSamplesFor(CRASH_2)));
+    assertTrue(selector.hasSamplesFor(CRASH2));
+    assertTrue(contains("crash2.wav", selector.getSamplesFor(CRASH2)));
 
     assertTrue(selector.hasSamplesFor(HIMIDTOM));
     assertTrue(contains("himidtom.wav", selector.getSamplesFor(HIMIDTOM)));
