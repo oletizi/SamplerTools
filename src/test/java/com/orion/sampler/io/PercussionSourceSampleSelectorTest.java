@@ -1,11 +1,13 @@
 package com.orion.sampler.io;
 
+import net.beadsproject.beads.data.Sample;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
+import static com.orion.sampler.midi.Percussion.*;
 import static org.junit.Assert.assertTrue;
 
 public class PercussionSourceSampleSelectorTest {
@@ -22,28 +24,33 @@ public class PercussionSourceSampleSelectorTest {
     final File folder = getFile(root);
     final PercussionSourceSampleSelector selector = new PercussionSourceSampleSelector(folder);
 
-    assertTrue(selector.hasChina());
-    assertEquals(getPath("china.wav"), selector.getChina().getFileName());
+    assertTrue(selector.hasSamplesFor(CHINA));
+    assertTrue(contains("china.wav", selector.getSamplesFor(CHINA)));
 
-    assertTrue(selector.hasClap());
-    assertEquals(getPath("clap.wav"), selector.getClap().getFileName());
+    assertTrue(selector.hasSamplesFor(CLAP));
+    assertTrue(contains("clap.wav", selector.getSamplesFor(CLAP)));
 
-    assertTrue(selector.hasCowbell());
-    assertEquals(getPath("cowbell.wav"), selector.getCowbell().getFileName());
+    assertTrue(selector.hasSamplesFor(COWBELL));
+    assertTrue(contains("cowbell.wav", selector.getSamplesFor(COWBELL)));
 
-    assertTrue(selector.hasCrash1());
-    assertEquals(getPath("crash1.wav"), selector.getCrash1().getFileName());
+    assertTrue(selector.hasSamplesFor(CRASH_1));
+    assertTrue(contains("crash1.wav", selector.getSamplesFor(CRASH_1)));
 
-    assertTrue(selector.hasCrash2());
-    assertEquals(getPath("crash2.wav"), selector.getCrash2().getFileName());
+    assertTrue(selector.hasSamplesFor(CRASH_2));
+    assertTrue(contains("crash2.wav", selector.getSamplesFor(CRASH_2)));
 
-    assertTrue(selector.hasHimidtom());
-    assertEquals(getPath("himidtom.wav"), selector.getHimidtom().getFileName());
+    assertTrue(selector.hasSamplesFor(HIMIDTOM));
+    assertTrue(contains("himidtom.wav", selector.getSamplesFor(HIMIDTOM)));
 
   }
 
-  private String getPath(String resource) {
-    return getFile(root + resource).getAbsolutePath();
+  private boolean contains(String s, Set<Sample> set) {
+    for (Sample sample : set) {
+      if (sample.getFileName().contains(s)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private File getFile(String resource) {

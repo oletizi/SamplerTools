@@ -1,108 +1,85 @@
 package com.orion.sampler.io;
 
+import com.orion.sampler.midi.Percussion;
 import net.beadsproject.beads.data.Sample;
+import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import static com.orion.sampler.midi.Percussion.*;
 
 public class PercussionSourceSampleSelector {
   private final File root;
-  private Sample china;
-  private Sample clap;
-  private Sample cowbell;
-  private Sample crash1;
-  private Sample crash2;
-  private Sample himidtom;
+  private final Map<Percussion, Set<Sample>> instrumentMap = new HashMap<>();
 
   public PercussionSourceSampleSelector(final File root) throws IOException {
     this.root = root;
 
     for (String filename : root.list((dir, name) -> name.endsWith(".wav"))) {
+      Percussion key = null;
       if (filename.matches("china.*")) {
-        china = newSample(filename);
+        key = CHINA;
       } else if (filename.matches("clap.*")) {
-        clap = newSample(filename);
+        key = CLAP;
       } else if (filename.matches("cowbell.*")) {
-        cowbell = newSample(filename);
+        key = COWBELL;
       } else if (filename.matches("crash1.*")) {
-        crash1 = newSample(filename);
+        key = CRASH_1;
       } else if (filename.matches("crash2.*")) {
-        crash2 = newSample(filename);
+        key = CRASH_2;
       } else if (filename.matches("himidtom.*")) {
-        himidtom = newSample(filename);
+        key = HIMIDTOM;
+      }
+      if (key != null) {
+        addSample(key, filename);
       }
     }
+  }
+
+  private void addSample(final Percussion key, final String filename) throws IOException {
+    getSamples(key).add(newSample(filename));
+  }
+
+  private Set<Sample> getSamples(final Percussion key) {
+    Set<Sample> samples = instrumentMap.get(key);
+    if (samples == null) {
+      samples = new HashSet<>();
+      instrumentMap.put(key, samples);
+    }
+    return samples;
   }
 
   private Sample newSample(String filename) throws IOException {
     return new Sample(new File(root, filename).getAbsolutePath());
   }
 
-  public boolean hasChina() {
-    return china != null;
+  public boolean hasSamplesFor(Percussion key) {
+    return !getSamples(key).isEmpty();
   }
 
-  public Sample getChina() {
-    return china;
+  public Set<Sample> getSamplesFor(final Percussion key) {
+    return new HashSet<>(getSamples(key));
   }
 
-  public boolean hasClap() {
-    return clap != null;
+  public void copyTo(File destination) throws IOException {
+    for (Map.Entry<Percussion, Set<Sample>> entry : instrumentMap.entrySet()) {
+      final Set<Sample> set = entry.getValue();
+      for (Sample sample : set) {
+        FileUtils.copyFileToDirectory(new File(sample.getFileName()), destination);
+      }
+    }
   }
 
-  public Sample getClap() {
-    return clap;
+  private void info(String s) {
+    System.out.println(getClass().getSimpleName() + ": " + s);
   }
 
-  public boolean hasCowbell() {
-    return cowbell != null;
+  public Map<Percussion, Set<Sample>> getAllSamples() {
+    return new HashMap(instrumentMap);
   }
-
-  public Sample getCowbell() {
-    return cowbell;
-  }
-
-  public Sample getCrash1() {
-    return crash1;
-  }
-
-  public boolean hasCrash1() {
-    return crash1 != null;
-  }
-
-  public Sample getCrash2() {
-    return crash2;
-  }
-
-  public boolean hasCrash2() {
-    return crash2 != null;
-  }
-
-  public boolean hasHimidtom() {
-    return himidtom != null;
-  }
-
-  public Sample getHimidtom() {
-    return himidtom;
-  }
-
-  private enum Instrument {
-    china,
-    clap,
-    cowbell,
-    crash1,
-    crash2,
-    himidtom,
-    hitom,
-    kick,
-    lowfloortom,
-    maracas,
-    ride1,
-    ride2,
-    ridebell,
-    sidestick,
-    snare,
-    tambo
-  }
-
 }

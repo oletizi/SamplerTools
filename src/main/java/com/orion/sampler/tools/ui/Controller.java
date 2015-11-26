@@ -45,6 +45,8 @@ import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+import static com.orion.sampler.midi.Percussion.CHINA;
+
 
 public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private final Stage stage;
@@ -71,13 +73,12 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private ChangeListener<? super Number> widthListener = (observable, oldValue, newValue) -> updateView();
 
   private Set<KeyCode> pressedKeys = new HashSet<>();
-  private final Sandbox sandbox;
   private double currentPreroll;
   private File sandboxFolder;
   private PercussionSourceSampleSelector percussionSelector;
 
   public Controller(final Sandbox sandbox, Stage stage, final Scene scene, final Group root, final Canvas canvas, final File sampleFile) throws IOException {
-    this.sandbox = sandbox;
+    this.sandboxFolder = sandbox.getNewSandbox();
     this.stage = stage;
     this.scene = scene;
     this.canvas = canvas;
@@ -159,8 +160,8 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   }
 
   private void loadChina() {
-    if (percussionSelector.hasChina()) {
-      sample = percussionSelector.getChina();
+    if (percussionSelector.hasSamplesFor(CHINA)) {
+      sample = percussionSelector.getSamplesFor(CHINA).iterator().next();
       info("Loaded china sample. " + sample.getLength() + "ms");
       updateSample();
     }
@@ -193,10 +194,12 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   private void slice() {
     final List<Sample> slices = new Slicer(offlineAc, locator).slice((int) currentPreroll);
     try {
-      sandboxFolder = sandbox.getNewSandbox();
       info("Writing slices to: " + sandboxFolder);
-      for (Sample slice : slices) {
-        slice.write(new File(sandboxFolder, "slice-" + System.currentTimeMillis() + ".wav").getAbsolutePath());
+      final File sampleFile = new File(sample.getFileName());
+      final String baseName = sampleFile.getName();
+
+      for (int i = 0; i < slices.size(); i++) {
+        slices.get(i).write(new File(sandboxFolder, baseName + "-" + i + ".wav").getAbsolutePath());
       }
     } catch (IOException e) {
       // TODO: add error handling
