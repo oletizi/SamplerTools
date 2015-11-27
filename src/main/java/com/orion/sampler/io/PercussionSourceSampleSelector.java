@@ -6,14 +6,11 @@ import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class PercussionSourceSampleSelector {
   private final File root;
-  private final Map<Percussion, Set<Sample>> instrumentMap = new HashMap<>();
+  private final Map<Percussion, List<Sample>> instrumentMap = new HashMap<>();
   private int sampleCount;
 
   public PercussionSourceSampleSelector(final File root) throws IOException {
@@ -36,10 +33,10 @@ public class PercussionSourceSampleSelector {
     sampleCount++;
   }
 
-  private Set<Sample> getSamples(final Percussion key) {
-    Set<Sample> samples = instrumentMap.get(key);
+  private List<Sample> getSamples(final Percussion key) {
+    List<Sample> samples = instrumentMap.get(key);
     if (samples == null) {
-      samples = new HashSet<>();
+      samples = new ArrayList<>();
       instrumentMap.put(key, samples);
     }
     return samples;
@@ -59,8 +56,8 @@ public class PercussionSourceSampleSelector {
 
   public void copyTo(File destination) throws IOException {
     if (!root.equals(destination)) {
-      for (Map.Entry<Percussion, Set<Sample>> entry : instrumentMap.entrySet()) {
-        final Set<Sample> set = entry.getValue();
+      for (Map.Entry<Percussion, List<Sample>> entry : instrumentMap.entrySet()) {
+        final List<Sample> set = entry.getValue();
         for (Sample sample : set) {
           FileUtils.copyFileToDirectory(new File(sample.getFileName()), destination);
         }
@@ -72,11 +69,15 @@ public class PercussionSourceSampleSelector {
     System.out.println(getClass().getSimpleName() + ": " + s);
   }
 
-  public Map<Percussion, Set<Sample>> getAllSamples() {
+  public Map<Percussion, List<Sample>> getAllSamples() {
     return new HashMap(instrumentMap);
   }
 
   public int getSampleCount() {
     return sampleCount;
+  }
+
+  public File getDirectory() {
+    return root;
   }
 }

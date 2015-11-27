@@ -3,6 +3,7 @@ package com.orion.sampler.tools;
 import com.orion.sampler.features.Transient;
 import com.orion.sampler.features.TransientLocator;
 import com.orion.sampler.tools.ui.progress.ProgressObserver;
+import com.orion.sampler.tools.ui.progress.ProgressObserverAdapter;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.data.Sample;
 
@@ -14,6 +15,10 @@ public class Slicer {
   private final TransientLocator locator;
   private final ProgressObserver progressObserver;
   private final Sample sourceSample;
+
+  public Slicer(final AudioContext ac, final TransientLocator locator) {
+    this(ac, locator, new ProgressObserverAdapter());
+  }
 
   public Slicer(AudioContext ac, TransientLocator locator, final ProgressObserver progressObserver) {
     this.ac = ac;

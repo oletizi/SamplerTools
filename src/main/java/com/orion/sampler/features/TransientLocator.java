@@ -19,18 +19,36 @@ public class TransientLocator extends UGen {
   private final AudioContext ac;
   private final PeakDetector od;
   private final List<Transient> transients = new ArrayList<>();
+  private final ShortFrameSegmenter sfs;
   private SamplePlayer player;
   private boolean running = true;
   private final TransientObserver observer;
   private final float sampleRateFactor;
 
-  public TransientLocator(final AudioContext ac, final Sample sample, float threshold, final IIRFilter filter, final TransientObserver observer) {
-    this(ac, sample.getSampleRate() / ac.getSampleRate(), threshold, filter, observer);
+  public TransientLocator(final AudioContext ac, final Sample sample, float threshold) {
+    this(ac, sample, threshold, () -> {
+      return;
+    });
+  }
+
+  public TransientLocator(final AudioContext ac, final Sample sample, float threshold, final TransientObserver observer) {
+    this(ac, sample, threshold, null, observer);
+  }
+
+  public TransientLocator(final AudioContext ac, final Sample sample, float threshold, final IIRFilter filter,
+                          final TransientObserver observer) {
+    this(ac, sample.getSampleRate() / ac.getSampleRate(), threshold, filter, observer)
+    ;
     player = new SamplePlayer(ac, sample);
     player.setEndListener(this);
     ac.out.addDependent(player);
-
-    filter.addInput(player);
+    if (filter != null) {
+      filter.addInput(player);
+      sfs.addInput(filter);
+    } else {
+      ac.out.addInput(player);
+      sfs.addInput(player);
+    }
     //and begin
     info("Starting non-realtime io...");
     ac.start();
@@ -42,7 +60,8 @@ public class TransientLocator extends UGen {
     this(ac, 1, threshold, filter, observer);
   }
 
-  private TransientLocator(final AudioContext ac, final float sampleRateFactor, float threshold, final IIRFilter filter, final TransientObserver observer) {
+  private TransientLocator(final AudioContext ac, final float sampleRateFactor, float threshold, final IIRFilter filter,
+                           final TransientObserver observer) {
 
     super(ac);
     this.sampleRateFactor = sampleRateFactor;
@@ -52,12 +71,13 @@ public class TransientLocator extends UGen {
      * To analyse a signal, build an analysis chain.
      * We also manually set parameters of the sfs.
      */
-    ShortFrameSegmenter sfs = new ShortFrameSegmenter(ac);
+    sfs = new ShortFrameSegmenter(ac);
     sfs.setChunkSize(2048);
     sfs.setHopSize(441);
 
-    //out.addInput(filter);
-    sfs.addInput(filter);
+    if (filter != null) {
+      sfs.addInput(filter);
+    }
     FFT fft = new FFT();
     PowerSpectrum ps = new PowerSpectrum();
     sfs.addListener(fft);

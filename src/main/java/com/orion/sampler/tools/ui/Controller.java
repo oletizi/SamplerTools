@@ -5,11 +5,8 @@ import com.orion.sampler.features.TransientLocator;
 import com.orion.sampler.features.TransientObserver;
 import com.orion.sampler.io.PercussionSourceSampleSelector;
 import com.orion.sampler.io.Sandbox;
-import com.orion.sampler.midi.Percussion;
 import com.orion.sampler.tools.Slicer;
 import com.orion.sampler.tools.program.PercussionProgramMaker;
-import com.orion.sampler.tools.ui.progress.FractionalProgressObserver;
-import com.orion.sampler.tools.ui.progress.ProgressObserver;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -45,7 +42,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -205,29 +201,8 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     final File dest = chooser.showDialog(stage);
     if (dest != null) {
       try {
-        // TODO: Add support for naming the program
-        final ProgressObserver progressObserver = (progress, message) -> info("Progress: " + progress + ", message: " + message);
-        final float progressFactor = 1 / percussionSelector.getSampleCount();
-        for (Map.Entry<Percussion, Set<Sample>> entry : percussionSelector.getAllSamples().entrySet()) {
-          // slice the source audio...
-          info("Slicing: key: " + entry.getKey());
-          for (Sample source : entry.getValue()) {
-            final TransientLocator thisLocator = new TransientLocator(offlineAc, source, this.transientThreshold, this.offlineFilter, () -> {
-              return;
-            });
-            final List<Sample> slices = new Slicer(offlineAc, thisLocator, new FractionalProgressObserver(progressObserver, progressFactor)).slice((int) currentPreroll);
-            for (int i = 0; i < slices.size(); i++) {
-              final String filename = new File(dest, entry.getKey().name() + "-" + i + ".wav").getAbsolutePath();
-              info("Writing slice: " + filename);
-              slices.get(i).write(filename);
-            }
-          }
-
-
-        }
-
-        final PercussionSourceSampleSelector slicedPercussionSelector = new PercussionSourceSampleSelector(dest);
-        new PercussionProgramMaker(slicedPercussionSelector).writeProgram("program", dest);
+        new PercussionProgramMaker("program", this.transientThreshold, (int) this.currentPreroll,
+            this.percussionSelector.getDirectory(), dest).writeProgramFromSource();
         info("Done writing program: " + dest);
       } catch (IOException e) {
         // TODO: Handle error
