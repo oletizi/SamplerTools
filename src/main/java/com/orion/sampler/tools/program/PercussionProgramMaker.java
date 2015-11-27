@@ -63,6 +63,9 @@ public class PercussionProgramMaker {
     final StringBuilderWriter sbw = new StringBuilderWriter();
     final PrintWriter out = new PrintWriter(sbw);
 
+    out.println("<global>");
+    out.println("loop_mode=one_shot");
+
     final Map<Percussion, List<Sample>> samples = selector.getAllSamples();
     info("Creating program from " + samples.size() + " samples...");
     for (Map.Entry<Percussion, List<Sample>> entry : samples.entrySet()) {
