@@ -10,8 +10,8 @@ public class PercussionTest {
 
   @Test
   public void test() throws Exception {
-    assertEquals(new Note("E4"), CHINA.key());
-    assertEquals(52, CHINA.key().getValue());
+    assertEquals(new Note("E4"), CHINA.getKey());
+    assertEquals(52, CHINA.getKey().getValue());
   }
 
 }

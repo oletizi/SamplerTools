@@ -201,7 +201,7 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
     final File dest = chooser.showDialog(stage);
     if (dest != null) {
       try {
-        new PercussionProgramMaker("program", this.transientThreshold, (int) this.currentPreroll,
+        new PercussionProgramMaker("program", (int) this.currentPreroll,
             this.percussionSelector.getDirectory(), dest).writeProgramFromSource();
         info("Done writing program: " + dest);
       } catch (IOException e) {

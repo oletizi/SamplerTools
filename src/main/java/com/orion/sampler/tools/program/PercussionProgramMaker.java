@@ -20,14 +20,12 @@ public class PercussionProgramMaker {
   private final String programName;
   private final File sourceDir;
   private final File destDir;
-  private float transientThreshold;
   private final AudioContext ac;
   private int preroll;
 
-  public PercussionProgramMaker(final String programName, final float transientThreshold, final int preroll,
+  public PercussionProgramMaker(final String programName, final int preroll,
                                 final File sourceDir, final File destDir) throws IOException {
     this.programName = programName;
-    this.transientThreshold = transientThreshold;
     this.preroll = preroll;
     this.sourceDir = sourceDir;
     this.destDir = destDir;
@@ -52,7 +50,7 @@ public class PercussionProgramMaker {
       final Sample sample = samples.get(i);
       out.println("<region>");
       out.println("sample=" + new File(sample.getFileName()).getName());
-      out.println("key=" + key.key().getValue());
+      out.println("key=" + key.getKey().getValue());
       //out.println("lovel=" + currentVelocity);
       out.println("hivel=" + ((i + 1 == samples.size()) ? 127 : currentVelocity));
       out.println();
@@ -93,9 +91,9 @@ public class PercussionProgramMaker {
     final Map<Percussion, List<Sample>> sourceSamples = new PercussionSourceSampleSelector(sourceDir).getAllSamples();
     for (Map.Entry<Percussion, List<Sample>> entry : sourceSamples.entrySet()) {
       // slice the source audio...
-      info("Slicing: key: " + entry.getKey());
+      info("Slicing: getKey: " + entry.getKey());
       for (Sample source : entry.getValue()) {
-        final TransientLocator thisLocator = new TransientLocator(ac, source, this.transientThreshold);
+        final TransientLocator thisLocator = new TransientLocator(ac, source, entry.getKey().getTransientThreshold());
         final List<Sample> slices = new Slicer(ac, thisLocator).slice(preroll);
         for (int i = 0; i < slices.size(); i++) {
           final String filename = new File(destDir, entry.getKey().name() + "-" + i + ".wav").getAbsolutePath();

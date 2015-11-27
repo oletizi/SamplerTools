@@ -21,7 +21,7 @@ public class PercussionSourceSampleSelector {
       final Percussion[] values = Percussion.values();
       for (Percussion value : values) {
         if (filename.matches("(?i:" + value.name() + ".*)")) {
-          info("Adding sample: key: " + value + ", value: " + filename);
+          info("Adding sample: getKey: " + value + ", value: " + filename);
           addSample(value, filename);
         }
       }

@@ -22,10 +22,9 @@ public class PercussionProgramMakerTest {
   public void before() throws Exception {
     final File sourceDir = new File(ClassLoader.getSystemResource("audio/drumsource/").getFile());
 
-    final float transientThreshold = 0.01f;
     final int preroll = 93;
     destDir = new Sandbox().getNewSandbox();
-    maker = new PercussionProgramMaker("program", transientThreshold, preroll, sourceDir, destDir);
+    maker = new PercussionProgramMaker("program", preroll, sourceDir, destDir);
   }
 
   @Test
