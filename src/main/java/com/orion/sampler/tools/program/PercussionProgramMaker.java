@@ -11,10 +11,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.StringBuilderWriter;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PercussionProgramMaker {
 
@@ -63,25 +60,35 @@ public class PercussionProgramMaker {
   }
 
   private String createProgramFromSamples(final PercussionSourceSampleSelector selector) {
+
     final StringBuilderWriter sbw = new StringBuilderWriter();
     final PrintWriter out = new PrintWriter(sbw);
 
-    out.print("#define $HHGRP " + HHGRP);
+    out.println("#define $HHGRP " + HHGRP);
+    out.println();
     out.println("<global>");
     out.println("loop_mode=one_shot");
 
+    final Map<Percussion, StringBuilderWriter> sections = new HashMap<>();
     final Map<Percussion, List<Sample>> samples = selector.getAllSamples();
     info("Creating program from " + samples.size() + " samples...");
     final List<Percussion> sortedKeys = new ArrayList<>(samples.keySet());
     Collections.sort(sortedKeys);
     for (Percussion key : sortedKeys) {
       final List<Sample> value = samples.get(key);
-//      switch (entry.getKey()) {
-//        case
-//      }
-      info("ENTRY KEY: " + key);
-      out.append(createRegion(key, value));
+      out.println("<group>");
+      out.println("key=" + key.getKey().getValue());
+      switch (key) {
+        case CLOSEDHH:
+        case PEDALHH:
+        case OPENHH:
+          out.println("group=$HHGRP");
+          out.println("off_by=$HHGRP");
+        default:
+      }
+      out.println(createRegion(key, value));
     }
+
 
     return sbw.toString();
   }
