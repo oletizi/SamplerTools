@@ -10,6 +10,7 @@ import net.beadsproject.beads.core.Bead;
 import net.beadsproject.beads.core.UGen;
 import net.beadsproject.beads.data.Sample;
 import net.beadsproject.beads.ugens.IIRFilter;
+import net.beadsproject.beads.ugens.RMS;
 import net.beadsproject.beads.ugens.SamplePlayer;
 
 import java.util.ArrayList;
@@ -18,8 +19,9 @@ import java.util.List;
 public class TransientLocator extends UGen {
   private final AudioContext ac;
   private final PeakDetector od;
-  private final List<Transient> transients = new ArrayList<>();
+  private final SliceList<Slice> slices = new SliceList<>();
   private final ShortFrameSegmenter sfs;
+  private ZeroLevelObserver zeroLevelObserver;
   private SamplePlayer player;
   private boolean running = true;
   private final TransientObserver observer;
@@ -37,8 +39,7 @@ public class TransientLocator extends UGen {
 
   public TransientLocator(final AudioContext ac, final Sample sample, float threshold, final IIRFilter filter,
                           final TransientObserver observer) {
-    this(ac, sample.getSampleRate() / ac.getSampleRate(), threshold, filter, observer)
-    ;
+    this(ac, sample.getSampleRate() / ac.getSampleRate(), threshold, filter, observer);
     player = new SamplePlayer(ac, sample);
     player.setEndListener(this);
     ac.out.addDependent(player);
@@ -49,6 +50,21 @@ public class TransientLocator extends UGen {
       ac.out.addInput(player);
       sfs.addInput(player);
     }
+
+    final RMS rms = new RMS(ac, 2, (int) ac.msToSamples(100));
+    ac.out.addInput(player);
+    rms.addInput(player);
+    player.addDependent(rms);
+    info("RMS inputs: " + rms.getIns() + ", " + rms.getConnectedInputs());
+
+    zeroLevelObserver = new ZeroLevelObserver(ac, 2, 2);
+    zeroLevelObserver.addInput(rms);
+    rms.addDependent(zeroLevelObserver);
+    zeroLevelObserver.addZeroListener(this);
+    info("RMS outputs: " + rms.getOuts());
+    info("ZeroLevelObserver ins: " + zeroLevelObserver.getIns());
+
+
     //and begin
     info("Starting non-realtime io...");
     ac.start();
@@ -67,6 +83,8 @@ public class TransientLocator extends UGen {
     this.sampleRateFactor = sampleRateFactor;
     this.observer = observer;
     this.ac = ac;
+
+
     /*
      * To analyse a signal, build an analysis chain.
      * We also manually set parameters of the sfs.
@@ -90,7 +108,6 @@ public class TransientLocator extends UGen {
     ps.addListener(sd);
     od = new PeakDetector();
     sd.addListener(od);
-
     /*
      * These parameters will need to be adjusted based on the
      * type of music. This demo uses the mouse position to adjust
@@ -109,23 +126,30 @@ public class TransientLocator extends UGen {
 
   }
 
-  public List<Transient> getTransients() {
-    return new ArrayList<>(transients);
+  public List<Slice> getSlices() {
+    return new ArrayList<>(slices);
   }
 
   @Override
   protected void messageReceived(Bead message) {
     super.messageReceived(message);
+
+    final int frameIndex = (int) (ac.msToSamples(ac.getTime()) * sampleRateFactor);
     if (message == player && running) {
       info("stopping player.");
       ac.stop();
       running = false;
+      info("comitting zero levels...");
+      slices.commitZeroLevels();
     }
     if (message == od) {
-      info(ac.getAudioIO() + " transient at: " + ac.getTime() + "ms, sample: " + ac.msToSamples(ac.getTime()));
+      info("transient at frameIndex: " + frameIndex);
       observer.notifyTransient();
-
-      transients.add(new Transient(ac.getTime(), (int) (ac.msToSamples(ac.getTime()) * sampleRateFactor)));
+      slices.add(new Slice(new Transient(this.getSample(), frameIndex)));
+    }
+    if (message == zeroLevelObserver) {
+      info("notifying slices of zero level at " + frameIndex);
+      slices.notifyZeroLevel(frameIndex);
     }
   }
 
@@ -141,4 +165,5 @@ public class TransientLocator extends UGen {
   public Sample getSample() {
     return player == null ? null : player.getSample();
   }
+
 }

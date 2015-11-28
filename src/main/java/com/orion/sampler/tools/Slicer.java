@@ -1,5 +1,6 @@
 package com.orion.sampler.tools;
 
+import com.orion.sampler.features.Slice;
 import com.orion.sampler.features.Transient;
 import com.orion.sampler.features.TransientLocator;
 import com.orion.sampler.tools.ui.progress.ProgressObserver;
@@ -30,43 +31,47 @@ public class Slicer {
   public List<Sample> slice(int prerollMs) {
     final int preRollSamples = (int) sourceSample.msToSamples(prerollMs);
     info("Preroll of " + prerollMs + " becomes " + preRollSamples + " samples.");
-    final List<Sample> rv = new ArrayList<>(locator.getTransients().size());
-    if (locator.getTransients().isEmpty()) return rv;
-    int currentFrame = 0;
+    final List<Slice> slices = locator.getSlices();
+    final List<Sample> rv = new ArrayList<>(slices.size());
+    if (slices.isEmpty()) return rv;
     float progress = 0;
-    final float progressStep = 1 / locator.getTransients().size();
-    for (Transient slicepoint : locator.getTransients()) {
-      progressObserver.notifyProgress(progress, "Creating slice at sample: " + slicepoint.getSampleIndex());
-      final int sampleIndex = calculateSampleIndex(preRollSamples, slicepoint);
-
-      final int bufferSize = sampleIndex - currentFrame;
-      if (currentFrame > 0 && bufferSize > 0) {
-        final Sample slice = createSlice(currentFrame, bufferSize);
-        rv.add(slice);
+    final float progressStep = 1 / slices.size();
+    for (int i = 0; i < slices.size(); i++) {
+      final Slice slice = slices.get(0);
+      final Transient start = slice.getStartTransient();
+      progressObserver.notifyProgress(progress, "Creating slice at sample: " + start.getFrameIndex());
+      final int startIndex = calculateSampleIndex(preRollSamples, start.getFrameIndex());
+      int endIndex = slice.getEndFrame();
+      if (endIndex == 0) {
+        // the level didn't go to zero before the next transient or the end of the source file
+        if (i + 1 == slices.size()) {
+          // this is the last slice. The end index is the end of the source sammple
+          endIndex = (int) sourceSample.getNumFrames();
+        } else {
+          // the end will be the onset of the next slice
+          endIndex = calculateSampleIndex(preRollSamples, slices.get(i + 1).getStartTransient().getFrameIndex() - 1);
+        }
       }
-      // update the current frame
-      currentFrame = sampleIndex;
+      info("Creating slice: startIndex: " + startIndex + ", endIndex: " + endIndex);
+      rv.add(createSlice(startIndex, endIndex));
       progressObserver.notifyProgress(progress += progressStep, "Done creating slice.");
     }
-
-    // grab the tail of the sample
-    final int bufferSize = (int) sourceSample.getNumFrames() - currentFrame;
-    rv.add(createSlice(currentFrame, bufferSize));
 
     return rv;
   }
 
-  private int calculateSampleIndex(int preRollSamples, Transient slicepoint) {
-    return Math.max(0, slicepoint.getSampleIndex() - preRollSamples);
+  private int calculateSampleIndex(int preRollSamples, int transientStart) {
+    return Math.max(0, transientStart - preRollSamples);
   }
 
-  private Sample createSlice(int currentFrame, int bufferSize) {
+  private Sample createSlice(int startFrame, int endFrame) {
+    final int bufferSize = endFrame - startFrame;
     final int channelCount = sourceSample.getNumChannels();
     float[][] buffer = new float[channelCount][bufferSize];
 
     // write the frames of the current slice into the buffer
-    info("currentFrame: " + currentFrame + ", bufferSize: " + bufferSize);
-    sourceSample.getFrames(currentFrame, buffer);
+    info("startFrame: " + startFrame + ", endFrame: " + endFrame + ", bufferSize: " + bufferSize);
+    sourceSample.getFrames(startFrame, buffer);
 
     //info("current frame: " + currentFrame + ", buffer size: " + bufferSize + ", buffer: " + Arrays.deepToString(buffer));
 
@@ -80,6 +85,6 @@ public class Slicer {
   }
 
   public void info(String m) {
-    System.out.println(m);
+    System.out.println(getClass().getSimpleName() + ": " + m);
   }
 }

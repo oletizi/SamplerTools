@@ -66,15 +66,11 @@ public class PercussionSourceSampleSelector {
   }
 
   private void info(String s) {
-    System.out.println(getClass().getSimpleName() + ": " + s);
+    //System.out.println(getClass().getSimpleName() + ": " + s);
   }
 
   public Map<Percussion, List<Sample>> getAllSamples() {
     return new HashMap(instrumentMap);
-  }
-
-  public int getSampleCount() {
-    return sampleCount;
   }
 
   public File getDirectory() {

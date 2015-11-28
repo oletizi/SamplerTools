@@ -1,6 +1,6 @@
 package com.orion.sampler.tools.ui;
 
-import com.orion.sampler.features.Transient;
+import com.orion.sampler.features.Slice;
 import com.orion.sampler.features.TransientLocator;
 import com.orion.sampler.features.TransientObserver;
 import com.orion.sampler.io.PercussionSourceSampleSelector;
@@ -242,16 +242,16 @@ public class Controller implements EventHandler<Event>, ChangeListener<Number> {
   }
 
   private void drawTransientMarkers() {
-    final List<Transient> transients = locator.getTransients();
+    final List<Slice> slices = locator.getSlices();
     final double vCenter = canvas.getHeight() / 2;
     final GraphicsContext gc = canvas.getGraphicsContext2D();
     gc.setFill(Color.BLUE);
     int prerollSamples = (int) ac.msToSamples(currentPreroll);
-    info("Transient locator: " + locator + ", Drawing transient markers. size: " + transients.size());
+    info("Transient locator: " + locator + ", Drawing transient markers. size: " + slices.size());
     info("Preroll " + currentPreroll + " becomes " + prerollSamples + " samples");
 
-    for (Transient t : transients) {
-      double x = (t.getSampleIndex() / samplesPerPixel) - (prerollSamples / samplesPerPixel);
+    for (Slice slice : slices) {
+      double x = (slice.getStartTransient().getFrameIndex() / samplesPerPixel) - (prerollSamples / samplesPerPixel);
       double y = 0;
       double w = 1;
       gc.fillRect(x, y, w, vCenter);

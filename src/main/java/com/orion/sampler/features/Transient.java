@@ -1,19 +1,21 @@
 package com.orion.sampler.features;
 
+import net.beadsproject.beads.data.Sample;
+
 public class Transient {
-  private final double time;
-  private final int sampleIndex;
+  private final Sample source;
+  private final int frameIndex;
 
-  public Transient(final double time, final int sampleIndex) {
-    this.time = time;
-    this.sampleIndex = sampleIndex;
+  public Transient(final Sample source, final int frameIndex) {
+    this.source = source;
+    this.frameIndex = frameIndex;
   }
 
-  public int getSampleIndex() {
-    return sampleIndex;
+  public int getFrameIndex() {
+    return frameIndex;
   }
 
-  public double getTime() {
-    return time;
+  public Sample getSource() {
+    return source;
   }
 }
