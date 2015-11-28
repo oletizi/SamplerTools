@@ -15,8 +15,6 @@ import java.util.*;
 
 public class PercussionProgramMaker {
 
-  private static final int HHGRP = 3;
-
   private final String programName;
   private final File sourceDir;
   private final File destDir;
@@ -50,8 +48,6 @@ public class PercussionProgramMaker {
       final Sample sample = samples.get(i);
       out.println("<region>");
       out.println("sample=" + new File(sample.getFileName()).getName());
-      out.println("key=" + key.getKey().getValue());
-      //out.println("lovel=" + currentVelocity);
       out.println("hivel=" + ((i + 1 == samples.size()) ? 127 : currentVelocity));
       out.println();
     }
@@ -63,8 +59,8 @@ public class PercussionProgramMaker {
 
     final StringBuilderWriter sbw = new StringBuilderWriter();
     final PrintWriter out = new PrintWriter(sbw);
-
-    out.println("#define $HHGRP " + HHGRP);
+    int groupNumber = 0;
+    out.println("#define $HHGRP " + groupNumber++);
     out.println();
     out.println("<global>");
     out.println("loop_mode=one_shot");
@@ -84,8 +80,13 @@ public class PercussionProgramMaker {
         case OPENHH:
           out.println("group=$HHGRP");
           out.println("off_by=$HHGRP");
+          break;
         default:
+          out.println("group=" + (groupNumber));
+          out.println("off_by=" + groupNumber);
+          groupNumber++;
       }
+      out.println();
       out.println(createRegion(key, value));
     }
 
