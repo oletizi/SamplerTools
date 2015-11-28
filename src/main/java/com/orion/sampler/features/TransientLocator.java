@@ -162,10 +162,6 @@ public class TransientLocator extends UGen implements LevelObserver {
     info("buffer!");
   }
 
-  private void info(String s) {
-    System.out.println(getClass().getSimpleName() + "[" + getCurrentFrameIndex() + "]: " + s);
-  }
-
   public Sample getSample() {
     return player == null ? null : player.getSample();
   }
@@ -193,4 +189,10 @@ public class TransientLocator extends UGen implements LevelObserver {
       newTransient(getCurrentFrameIndex());
     }
   }
+
+
+  private void info(String s) {
+    //System.out.println(getClass().getSimpleName() + "[" + getCurrentFrameIndex() + "]: " + s);
+  }
+
 }

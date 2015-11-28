@@ -12,10 +12,13 @@ import org.apache.commons.io.output.StringBuilderWriter;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 public class PercussionProgramMaker {
+
+  private static final int HHGRP = 3;
 
   private final String programName;
   private final File sourceDir;
@@ -59,24 +62,44 @@ public class PercussionProgramMaker {
     return sbw.toString();
   }
 
-  public String createProgramFromSamples(final PercussionSourceSampleSelector selector) {
+  private String createProgramFromSamples(final PercussionSourceSampleSelector selector) {
     final StringBuilderWriter sbw = new StringBuilderWriter();
     final PrintWriter out = new PrintWriter(sbw);
 
+    out.print("#define $HHGRP " + HHGRP);
     out.println("<global>");
     out.println("loop_mode=one_shot");
 
     final Map<Percussion, List<Sample>> samples = selector.getAllSamples();
     info("Creating program from " + samples.size() + " samples...");
-    for (Map.Entry<Percussion, List<Sample>> entry : samples.entrySet()) {
-      out.append(createRegion(entry.getKey(), new ArrayList<>(entry.getValue())));
+    final List<Percussion> sortedKeys = new ArrayList<>(samples.keySet());
+    Collections.sort(sortedKeys);
+    for (Percussion key : sortedKeys) {
+      final List<Sample> value = samples.get(key);
+//      switch (entry.getKey()) {
+//        case
+//      }
+      info("ENTRY KEY: " + key);
+      out.append(createRegion(key, value));
     }
 
     return sbw.toString();
   }
 
+  public void writeProgramFromSamples() throws IOException {
+    if (!sourceDir.equals(destDir)) {
+      info("Copying samples from " + sourceDir + " to " + destDir);
+      new PercussionSourceSampleSelector(sourceDir).copyTo(destDir);
+    }
+    writeProgram();
+  }
+
   public void writeProgramFromSource() throws IOException {
     sliceSource();
+    writeProgram();
+  }
+
+  private void writeProgram() throws IOException {
     final Writer out = new OutputStreamWriter(new FileOutputStream(new File(destDir, programName + ".sfz")));
     final String program = createProgramFromSamples(new PercussionSourceSampleSelector(destDir));
     info("Writing program: " + program);
@@ -94,13 +117,13 @@ public class PercussionProgramMaker {
     final Map<Percussion, List<Sample>> sourceSamples = new PercussionSourceSampleSelector(sourceDir).getAllSamples();
     for (Map.Entry<Percussion, List<Sample>> entry : sourceSamples.entrySet()) {
       // slice the source audio...
-      info("Slicing: getKey: " + entry.getKey());
+      //info("Slicing: getKey: " + entry.getKey());
       for (Sample source : entry.getValue()) {
         final TransientLocator thisLocator = new TransientLocator(ac, source, entry.getKey().getTransientThreshold());
         final List<Sample> slices = new Slicer(ac, thisLocator).slice(preroll);
         for (int i = 0; i < slices.size(); i++) {
           final String filename = new File(destDir, entry.getKey().name() + "-" + i + ".wav").getAbsolutePath();
-          info("Writing slice: " + filename);
+          //info("Writing slice: " + filename);
           slices.get(i).write(filename);
         }
       }
@@ -108,6 +131,6 @@ public class PercussionProgramMaker {
   }
 
   private void info(String s) {
-    //System.out.println(getClass().getSimpleName() + ": " + s);
+    System.out.println(getClass().getSimpleName() + ": " + s);
   }
 }

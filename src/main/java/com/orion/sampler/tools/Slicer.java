@@ -84,6 +84,6 @@ public class Slicer {
   }
 
   public void info(String m) {
-    System.out.println(getClass().getSimpleName() + ": " + m);
+    //System.out.println(getClass().getSimpleName() + ": " + m);
   }
 }
