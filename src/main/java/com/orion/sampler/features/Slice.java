@@ -44,4 +44,8 @@ public class Slice {
   public int getStartFrame() {
     return startFrame;
   }
+
+  public void setEndFrame(int endFrame) {
+    this.endFrame = endFrame;
+  }
 }

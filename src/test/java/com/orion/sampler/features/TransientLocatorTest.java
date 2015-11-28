@@ -27,7 +27,7 @@ public class TransientLocatorTest {
 
   @Before
   public void before() throws Exception {
-    resource = ClassLoader.getSystemResource("audio/count2.wav");
+    resource = ClassLoader.getSystemResource("audio/count.wav");
     sample = new Sample(resource.getFile());
     ac = new AudioContext(new NonrealtimeIO());
     filter = new BiquadFilter(ac, 2);

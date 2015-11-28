@@ -19,6 +19,16 @@ public class SliceList<T extends Slice> extends ArrayList<Slice> {
         slice.notifyZeroLevelIndex(zeroLevel);
       }
     }
+    for (int i = 0; i < size(); i++) {
+      final Slice slice = get(i);
+      if (i + 1 < size() && slice.getEndFrame() == 0) {
+        // There was no zero level in this slice. Set the end of this slice to the transient onset of the next slice.
+        slice.setEndFrame(get(i + 1).getStartFrame() - 1);
+      } else if (i + 1 == size() && slice.getEndFrame() == 0) {
+        // This is the last slice and it had no zero level. Set the end of this slice to the end of the source stream
+        slice.setEndFrame((int) slice.getStartTransient().getSource().getNumFrames());
+      }
+    }
   }
 
   private Slice findSliceForFrameIndex(int frameIndex) {

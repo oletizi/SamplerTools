@@ -16,14 +16,15 @@ import net.beadsproject.beads.ugens.SamplePlayer;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TransientLocator extends UGen {
+public class TransientLocator extends UGen implements LevelObserver {
   private final AudioContext ac;
   private final PeakDetector od;
   private final SliceList<Slice> slices = new SliceList<>();
   private final ShortFrameSegmenter sfs;
-  private ZeroLevelObserver zeroLevelObserver;
+  private RMSLevelObserver rmsLevelObserver;
   private SamplePlayer player;
   private boolean running = true;
+  private final float transientThreshold;
   private final TransientObserver observer;
   private final float sampleRateFactor;
 
@@ -51,18 +52,19 @@ public class TransientLocator extends UGen {
       sfs.addInput(player);
     }
 
+    // TODO: Make the time range adjustable
     final RMS rms = new RMS(ac, 2, (int) ac.msToSamples(100));
     ac.out.addInput(player);
     rms.addInput(player);
     player.addDependent(rms);
     info("RMS inputs: " + rms.getIns() + ", " + rms.getConnectedInputs());
 
-    zeroLevelObserver = new ZeroLevelObserver(ac, 2, 2);
-    zeroLevelObserver.addInput(rms);
-    rms.addDependent(zeroLevelObserver);
-    zeroLevelObserver.addZeroListener(this);
+    rmsLevelObserver = new RMSLevelObserver(ac, 2, 2);
+    rmsLevelObserver.addInput(rms);
+    rms.addDependent(rmsLevelObserver);
+    rmsLevelObserver.addObserver(this);
     info("RMS outputs: " + rms.getOuts());
-    info("ZeroLevelObserver ins: " + zeroLevelObserver.getIns());
+    info("rmsLevelObserver ins: " + rmsLevelObserver.getIns());
 
 
     //and begin
@@ -81,6 +83,7 @@ public class TransientLocator extends UGen {
 
     super(ac);
     this.sampleRateFactor = sampleRateFactor;
+    transientThreshold = threshold;
     this.observer = observer;
     this.ac = ac;
 
@@ -108,14 +111,11 @@ public class TransientLocator extends UGen {
     ps.addListener(sd);
     od = new PeakDetector();
     sd.addListener(od);
-    /*
-     * These parameters will need to be adjusted based on the
-     * type of music. This demo uses the mouse position to adjust
-     * them dynamically.
-     * mouse.x controls Threshold, mouse.y controls Alpha
-     */
+
     od.setThreshold(threshold);
-    od.setAlpha(.9f);
+    // TODO: Provide access to the alpha control. Not exactly sure what the alpha does, but it seems to have
+    // something to do with momentum--how fast the transient detection triggers.
+    od.setAlpha(0.9999999f);
 
     /*
      * OnsetDetector sends messages whenever it detects an onset.
@@ -134,7 +134,7 @@ public class TransientLocator extends UGen {
   protected void messageReceived(Bead message) {
     super.messageReceived(message);
 
-    final int frameIndex = (int) (ac.msToSamples(ac.getTime()) * sampleRateFactor);
+    final int frameIndex = getCurrentFrameIndex();
     if (message == player && running) {
       info("stopping player.");
       ac.stop();
@@ -143,14 +143,18 @@ public class TransientLocator extends UGen {
       slices.commitZeroLevels();
     }
     if (message == od) {
-      info("transient at frameIndex: " + frameIndex);
-      observer.notifyTransient();
-      slices.add(new Slice(new Transient(this.getSample(), frameIndex)));
+      newTransient(frameIndex);
     }
-    if (message == zeroLevelObserver) {
-      info("notifying slices of zero level at " + frameIndex);
-      slices.notifyZeroLevel(frameIndex);
-    }
+  }
+
+  private void newTransient(int frameIndex) {
+    info("transient at frameIndex: " + frameIndex);
+    observer.notifyTransient();
+    slices.add(new Slice(new Transient(this.getSample(), frameIndex)));
+  }
+
+  private int getCurrentFrameIndex() {
+    return (int) (ac.msToSamples(ac.getTime()) * sampleRateFactor);
   }
 
   @Override
@@ -159,11 +163,34 @@ public class TransientLocator extends UGen {
   }
 
   private void info(String s) {
-    System.out.println(getClass().getSimpleName() + ": " + s);
+    System.out.println(getClass().getSimpleName() + "[" + getCurrentFrameIndex() + "]: " + s);
   }
 
   public Sample getSample() {
     return player == null ? null : player.getSample();
   }
 
+  @Override
+  public void notifyZeroLevel() {
+    final int frameIndex = getCurrentFrameIndex();
+    info("notifying slices of zero level at " + frameIndex);
+    slices.notifyZeroLevel(frameIndex);
+  }
+
+  @Override
+  public void notifyLevel(float level) {
+    info("Level: " + level);
+    // TODO: This is probably not quite right
+    // The idea is that if the level is above the threshold at the beginning of the source audio,
+    // the PeakDetector doesn't count it as a transient (because--I think--the level change is
+    // below the threshold)
+    // This is here to add a transient at the beginning, if the RMS level at the beginning is greater than
+    // the threshold.
+    // I'm not sure, though, if the PeakDetector threshold scale matches the RMS level scale, so this algorithm
+    // could be totally wrong. Too bad I can't math.
+    if (slices.isEmpty() && level > transientThreshold) {
+      info("creating a slice at the beginning of the audio stream...");
+      newTransient(getCurrentFrameIndex());
+    }
+  }
 }
