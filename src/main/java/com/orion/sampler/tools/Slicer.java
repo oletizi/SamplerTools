@@ -1,7 +1,6 @@
 package com.orion.sampler.tools;
 
 import com.orion.sampler.features.Slice;
-import com.orion.sampler.features.Transient;
 import com.orion.sampler.features.TransientLocator;
 import com.orion.sampler.tools.ui.progress.ProgressObserver;
 import com.orion.sampler.tools.ui.progress.ProgressObserverAdapter;
@@ -37,31 +36,31 @@ public class Slicer {
     float progress = 0;
     final float progressStep = 1 / slices.size();
     for (int i = 0; i < slices.size(); i++) {
-      final Slice slice = slices.get(0);
-      final Transient start = slice.getStartTransient();
-      progressObserver.notifyProgress(progress, "Creating slice at sample: " + start.getFrameIndex());
-      final int startIndex = calculateSampleIndex(preRollSamples, start.getFrameIndex());
-      int endIndex = slice.getEndFrame();
-      if (endIndex == 0) {
-        // the level didn't go to zero before the next transient or the end of the source file
-        if (i + 1 == slices.size()) {
-          // this is the last slice. The end index is the end of the source sammple
-          endIndex = (int) sourceSample.getNumFrames();
-        } else {
-          // the end will be the onset of the next slice
-          endIndex = calculateSampleIndex(preRollSamples, slices.get(i + 1).getStartTransient().getFrameIndex() - 1);
+      final Slice slice = slices.get(i);
+      final int startFrame = calculateStartFrame(preRollSamples, slice);
+      int endFrame = slice.getEndFrame();
+
+      // check the next slice to make sure that the end frame of this slice doesn't overlap the preroll-adjusted start
+      // frame of the next slice (unless it's the last slice, in which case we don't care).
+      if (i + 1 < slices.size()) {
+        final Slice nextSlice = slices.get(i + 1);
+        assert slice != nextSlice;
+        final int nextSliceStart = calculateStartFrame(preRollSamples, nextSlice);
+        if (endFrame > nextSliceStart) {
+          endFrame = nextSliceStart - 1;
         }
       }
-      info("Creating slice: startIndex: " + startIndex + ", endIndex: " + endIndex);
-      rv.add(createSlice(startIndex, endIndex));
+      progressObserver.notifyProgress(progress, "Creating slice at sample: " + startFrame);
+      info("Creating slice: startFrame: " + startFrame + ", endFrame: " + endFrame);
+      rv.add(createSlice(startFrame, endFrame));
       progressObserver.notifyProgress(progress += progressStep, "Done creating slice.");
     }
 
     return rv;
   }
 
-  private int calculateSampleIndex(int preRollSamples, int transientStart) {
-    return Math.max(0, transientStart - preRollSamples);
+  private int calculateStartFrame(final int preRollSamples, final Slice slice) {
+    return Math.max(0, slice.getStartFrame() - preRollSamples);
   }
 
   private Sample createSlice(int startFrame, int endFrame) {

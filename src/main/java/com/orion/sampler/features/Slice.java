@@ -19,16 +19,25 @@ public class Slice {
     }
   }
 
-  private void info(String s) {
-    System.out.println(this + ": " + s);
-  }
-
   public Transient getStartTransient() {
     return start;
   }
 
+  public int getStartFrame() {
+    return startFrame;
+  }
+
   public int getEndFrame() {
     return endFrame;
+  }
+
+  public void setEndFrame(int endFrame) {
+    assert endFrame > startFrame;
+    this.endFrame = endFrame;
+  }
+
+  private void info(String s) {
+    System.out.println(this + ": " + s);
   }
 
   @Override
@@ -41,11 +50,4 @@ public class Slice {
     return getClass().getSimpleName() + "<startFrame: " + startFrame + ", endFrame: " + endFrame + sourceFrames + ">";
   }
 
-  public int getStartFrame() {
-    return startFrame;
-  }
-
-  public void setEndFrame(int endFrame) {
-    this.endFrame = endFrame;
-  }
 }
