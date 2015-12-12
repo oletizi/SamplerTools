@@ -1,4 +1,4 @@
-package com.orion.sampler.tools.ui;
+package com.orion.sampler.tools.percussion.ui;
 
 import com.orion.sampler.features.Slice;
 import com.orion.sampler.features.TransientLocator;
@@ -6,7 +6,7 @@ import com.orion.sampler.features.TransientObserver;
 import com.orion.sampler.io.PercussionSourceSampleSelector;
 import com.orion.sampler.io.Sandbox;
 import com.orion.sampler.tools.Slicer;
-import com.orion.sampler.tools.program.PercussionProgramMaker;
+import com.orion.sampler.tools.percussion.program.PercussionProgramMaker;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;

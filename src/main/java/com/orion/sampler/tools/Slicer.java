@@ -2,8 +2,8 @@ package com.orion.sampler.tools;
 
 import com.orion.sampler.features.Slice;
 import com.orion.sampler.features.TransientLocator;
-import com.orion.sampler.tools.ui.progress.ProgressObserver;
-import com.orion.sampler.tools.ui.progress.ProgressObserverAdapter;
+import com.orion.sampler.tools.percussion.ui.progress.ProgressObserver;
+import com.orion.sampler.tools.percussion.ui.progress.ProgressObserverAdapter;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.data.Sample;
 

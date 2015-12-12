@@ -1,4 +1,4 @@
-package com.orion.sampler.tools.program;
+package com.orion.sampler.tools.percussion.program;
 
 import com.orion.sampler.features.TransientLocator;
 import com.orion.sampler.io.PercussionSourceSampleSelector;

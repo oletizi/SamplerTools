@@ -1,4 +1,4 @@
-package com.orion.sampler.tools.ui.progress;
+package com.orion.sampler.tools.percussion.ui.progress;
 
 public interface ProgressObserver {
 

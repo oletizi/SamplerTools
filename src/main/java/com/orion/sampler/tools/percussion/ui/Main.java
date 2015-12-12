@@ -1,4 +1,4 @@
-package com.orion.sampler.tools.ui;
+package com.orion.sampler.tools.percussion.ui;
 
 import com.orion.sampler.io.Sandbox;
 import javafx.application.Application;

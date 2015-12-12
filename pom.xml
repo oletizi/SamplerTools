@@ -18,6 +18,23 @@
         </extensions>
         <plugins>
             <plugin>
+                <groupId>sh.tak.appbundler</groupId>
+                <artifactId>appbundle-maven-plugin</artifactId>
+                <version>1.0.4</version>
+                <configuration>
+                    <mainClass>com.orion.sampler.tools.resampler.ui.ResamplerMain</mainClass>
+                    <jrePath>/Library/Java/JavaVirtualMachines/jdk1.8.0_25.jdk</jrePath>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>bundle</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
