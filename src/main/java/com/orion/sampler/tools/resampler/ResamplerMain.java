@@ -1,4 +1,4 @@
-package com.orion.sampler.tools.resampler.ui;
+package com.orion.sampler.tools.resampler;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -19,7 +19,7 @@ public class ResamplerMain extends Application {
 
     Parent root = FXMLLoader.load(fxmlUrl);
 
-    Scene scene = new Scene(root, 300, 275);
+    Scene scene = new Scene(root);
 
     stage.setTitle("Resampler Tools");
     stage.setScene(scene);

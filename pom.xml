@@ -18,11 +18,12 @@
         </extensions>
         <plugins>
             <plugin>
+                <!-- DO THIS: mvn clean package appbundle:bundle -->
                 <groupId>sh.tak.appbundler</groupId>
                 <artifactId>appbundle-maven-plugin</artifactId>
                 <version>1.0.4</version>
                 <configuration>
-                    <mainClass>com.orion.sampler.tools.resampler.ui.ResamplerMain</mainClass>
+                    <mainClass>com.orion.sampler.tools.resampler.ResamplerMain</mainClass>
                     <jrePath>/Library/Java/JavaVirtualMachines/jdk1.8.0_25.jdk</jrePath>
                 </configuration>
                 <executions>
